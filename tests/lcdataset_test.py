@@ -105,7 +105,7 @@ class TestDatasetBuilder(unittest.TestCase):
         d.to_file(self.data_dir, data_types=ALL_TYPES)
         dict1 = LCDataset.dict_from_file(self.data_dir)
 
-        self.assertListEqual(list(dict1["data"].keys()), list(dict2["data"].keys()))
+        self.assertListEqual(sorted(list(dict1["data"].keys())), sorted(list(dict2["data"].keys())))
 
         for k in dict1["data"]:
             if k in ALL_TYPES:

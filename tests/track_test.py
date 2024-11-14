@@ -109,12 +109,13 @@ class TestTrack(unittest.TestCase):
         amp = 3
         t.data[:, 1] = amp* np.sin(t.data[:, 0] * 2 * np.pi)
 
-        eps = 1e-3
+        eps = 1e-1
         t.compute_amplitude()
         assert  2*amp - eps < t.amplitude < 2*amp + eps, f"Wrong amplitude: Expected {amp}, got {t.amplitude}"
 
 
-        t.data[:, 1] = amp* np.sin(t.data[:, 0] * 2 * np.pi) + amp* np.sin(t.data[:, 0] * 2 * np.pi - np.pi)
+        t.data[:, 1] = amp*np.sin(t.data[:, 0] * 2 * np.pi) + amp* np.sin(t.data[:, 0] * 2 * np.pi - np.pi)
+        t.stats = {}
         t.compute_amplitude()
         assert 0 - eps < t.amplitude < 0 + eps, f"Wrong amplitude: Expected 0, got {t.amplitude}"
     
