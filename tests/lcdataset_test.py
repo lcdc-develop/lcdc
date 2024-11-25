@@ -19,9 +19,9 @@ class TestDatasetBuilder(unittest.TestCase):
         norad_to_label = {1: "A", 2: "B"}
 
         for i in range(50):
-            t = Track(i, 1, 0, 0, 0, data=np.random.randn(100, 5) + 10)
+            t = Track(i, 1, "2021-01-01 20:20:20", 0, 0, data=np.random.randn(100, 5) + 10)
             tracks[i] = [t]
-            t = Track(i + 50, 2, 0, 0, 0, data=np.random.randn(100, 5) + 10)
+            t = Track(i + 50, 2, '2021-01-01 20:20:20', 0, 0, data=np.random.randn(100, 5) + 10)
             tracks[i + 50] = [t]
 
         self.data_dir = tempfile.mkdtemp()
@@ -101,6 +101,7 @@ class TestDatasetBuilder(unittest.TestCase):
         d.mean_std = True
 
         dict2 = d.to_dict(ALL_TYPES)
+        print(dict2["data"].keys())
 
         d.to_file(self.data_dir, data_types=ALL_TYPES)
         dict1 = LCDataset.dict_from_file(self.data_dir)
@@ -113,7 +114,7 @@ class TestDatasetBuilder(unittest.TestCase):
                     self.assertTrue(np.all(dict1["data"][k][i] == dict2["data"][k][i]))
             else:
                 print(k, k in dict1["data"], k in dict2["data"])
-                print(dict1["data"][k], dict2["data"][k])
+                # print(dict1["data"][k], dict2["data"][k])
                 self.assertTrue(dict1["data"][k] == dict2["data"][k])
 
 if __name__ == '__main__':

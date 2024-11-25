@@ -7,7 +7,7 @@ TRACK_DATA_DIM = 5
 class Track:
     id: int
     norad_id: int
-    timestamp: int
+    timestamp: str
     mjd: float
     period: int
     start_idx: int = 0
