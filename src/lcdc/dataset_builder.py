@@ -3,16 +3,19 @@ from typing import List
 
 import numpy as np
 from sklearn.model_selection import train_test_split
-from dataset_builder.lcdataset import LCDataset
 
-from utils import Track, load_rsos_from_csv, load_tracks_from_csv
+from .lcdataset import LCDataset
+from .utils.track import Track
+from .utils.rso import RSO
+from .utils.functions import load_rsos_from_csv, load_tracks_from_csv
 
 class DatasetBuilder:
     
     def __init__(self, 
                  directory,
-                 classes,
+                 classes=None,
                  regexes=None,
+                 norad_ids=None,
                  preprocessing=None,
                  step=None,
                  split_ratio=None,
@@ -26,18 +29,35 @@ class DatasetBuilder:
         self.compute_mean_std = mean_std
         self.lazy = lazy
 
+        self.norad_ids = norad_ids
+        assert classes is not None or norad_ids is not None, "Either classes or norad_ids must be provided"
+
+        if norad_ids is not None:
+            classes = "Unknown"
+            regexes = [".*"]
+
         self.classes = {c:i for i, c in enumerate(classes)}
+
+
         regexes = regexes if regexes is not None else classes
         self.regexes = {c:re.compile(r) for c,r in zip(classes, regexes)}
-
         self.objects, self.tracks, self.labels = self.load_data()
+
+
+
         print(f"Loaded {len(self.objects)} objects and {len(self.tracks)} tracks")
 
     def load_data(self):
         object_list = load_rsos_from_csv(f"{self.dir}/rso.csv")
+
+        if self.norad_ids is not None:
+            object_list = list(filter(lambda x: x.norad_id in self.norad_ids, object_list))
+
         label_list = list(map(self._get_label, object_list))
 
         objects = {o.norad_id: o for o, l in zip(object_list, label_list) if l is not None}
+
+
         labels  = {o.norad_id: l for o, l in zip(object_list, label_list) if l is not None}
 
         track_list = load_tracks_from_csv(f"{self.dir}/tracks.csv")

@@ -4,8 +4,8 @@ import tempfile
 import unittest
 
 import numpy as np
-from dataset_builder.lcdataset import LCDataset
-from utils import ALL_TYPES, DataType, Track
+from lcdc import LCDataset, Track
+from lcdc.vars import ALL_TYPES, DataType
 
 
 def mock_load_data_from_file(t):
@@ -79,7 +79,7 @@ class TestDatasetBuilder(unittest.TestCase):
         with open(f"{self.data_dir}/test.csv", "r") as f:
             lines = f.readlines()
             self.assertEqual(len(lines), 101)
-            self.assertEqual(lines[0], "id,label,period,amplitude,start_idx,end_idx,data\n")
+            self.assertEqual(lines[0], "id,norad,label,period,timestamp,start_idx,end_idx,data\n")
 
         with open(f"{self.data_dir}/data/A/1_0_-1.csv", "r") as f:
             lines = f.readlines()
@@ -112,6 +112,8 @@ class TestDatasetBuilder(unittest.TestCase):
                 for i in range(len(dict1["data"][k])):
                     self.assertTrue(np.all(dict1["data"][k][i] == dict2["data"][k][i]))
             else:
+                print(k, k in dict1["data"], k in dict2["data"])
+                print(dict1["data"][k], dict2["data"][k])
                 self.assertTrue(dict1["data"][k] == dict2["data"][k])
 
 if __name__ == '__main__':

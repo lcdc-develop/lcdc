@@ -1,16 +1,17 @@
 import json
 import os
+import tqdm
 from collections import defaultdict
 from typing import Dict
 
 import numpy as np
-from utils import DataType, TYPES_INDICES, Track
+from .utils.track import Track
+from .vars import DataType, TYPES_INDICES
 
-# HACK: test if stats work correctly
 
 class LCDataset:
 
-    COLUMNS = ["id", "label", "period", "amplitude", "start_idx", "end_idx"]
+    COLUMNS = ["id", "label", "period", "start_idx", "end_idx"]
 
     def __init__(
         self,
@@ -40,12 +41,13 @@ class LCDataset:
         with open(f"{path}/{metadata_csv}", "r") as f:
             f.readline()
             for line in f.readlines():
-                id, label, p, amp, s_idx, e_idx, file = line.strip().split(",")
+                id,norad_id, label, p, t, s_idx, e_idx, file = line.strip().split(",")
 
                 data["id"].append(int(id))
+                data["norad_id"].append(int(norad_id))
                 data["label"].append(label)
                 data["period"].append(float(p))
-                data["amplitude"].append(float(amp))
+                data["timestamp"].append(t)
                 data["start_idx"].append(int(s_idx))
                 data["end_idx"].append(int(e_idx))
 
@@ -60,12 +62,12 @@ class LCDataset:
         means, stds = LCDataset._load_mean_std(path)
         LCDataset._load_stats_to_data(path, data)
 
-        return {
-            "data": data,
-            "mean": means,
-            "std": stds,
-        }
+        res = {"data": data}
+        if means != {}: res["mean"] = means
+        if stds != {}: res["std"] = stds
 
+        return res
+    
     @staticmethod
     def _load_stats_to_data(path, data):
         json_file = f"{path}/stats.json"
@@ -74,8 +76,10 @@ class LCDataset:
             with open(json_file, "r") as f:
                 stats = json.load(f)
             for id in data["id"]:
-                for k in stats[id]:
-                    data[k].append(stats[id][k])
+                for k in stats[str(id)]: #FIXME: check if id is in stats
+                    if k not in data:
+                        data[k] = []
+                    data[k].append(stats[str(id)][k])
 
     @staticmethod
     def _load_mean_std(path):
@@ -92,37 +96,37 @@ class LCDataset:
 
         return means, stds
 
-    def to_dict(self, data_types):
+    def to_dict(self, data_types, stats=[]):
         data = defaultdict(list)
-        stats = False
-        stats_names = []
 
-        for t_id in self.tracks:
+        for t_id in tqdm.tqdm(list(self.tracks.keys()), desc="Preparing data"):
             for t in self.tracks[t_id]:
-                if not stats and t.stats != {}:
-                    stats = True
-                    stats_names = list(t.stats.keys())
                 if t.data is None:
                     t.load_data_from_file(f"{self.data_dir}/data")
                 for td in data_types:
                     data[td].append(t.data[:, TYPES_INDICES[td]])
+
+                data["id"].append(t.id)
+                data["norad_id"].append(t.norad_id)
                 data["label"].append(self.norad_to_label[t.norad_id])
                 data["period"].append(t.period)
-                data["amplitude"].append(t.amplitude)
+                data["timestamp"].append(t.timestamp)
                 data["start_idx"].append(t.start_idx)
                 data["end_idx"].append(t.end_idx)
-                data["id"].append(t.id)
 
-                # HACK: to ensure there is entry for missing stats
-                #       maybe should raise error
-                if stats:
-                    for k, v in t.stats.items():
-                        data[k].append(v)
+                if stats != []:
+                    for s in stats:
+                        s(t)
+                    for k in sorted(t.stats.keys()):
+                        if k not in data:
+                            data[k] = []
+                        data[k].append(t.stats[k])
 
-        means = {dt: 0 for dt in data_types + ["amplitude"]}
-        stds = {dt: 1 for dt in data_types + ["amplitude"]}
+        res = {"data": data}
 
         if self.mean_std:
+            means = {dt: 0 for dt in data_types}
+            stds = {dt: 1 for dt in data_types}
 
             for k in means:
                 if isinstance(data[k][0], np.ndarray):
@@ -132,14 +136,13 @@ class LCDataset:
                 non_zero = x != 0
                 means[k] = np.mean(x[non_zero])
                 stds[k] = np.std(x[non_zero])
+            
+            res["mean"] = means
+            res["std"] = stds
 
-        return {
-            "data": data,
-            "mean": means,
-            "std": stds,
-        }
+        return res
 
-    def to_file(self, path, data_types):
+    def to_file(self, path, data_types, stats=[]):
 
         os.makedirs(path, exist_ok=True)
         self._save_metadata(path)
@@ -164,10 +167,10 @@ class LCDataset:
                     for dt in running_std:
                         running_std[dt].update(t.data[:, TYPES_INDICES[dt]])
 
+                if stats != []:
+                    for s in stats: s(t)
                 if not save_stats and t.stats != {}:
                     save_stats = True
-
-                t.unload_data()
 
         if save_stats:
             self._save_stats(path)
@@ -180,7 +183,8 @@ class LCDataset:
         for parts in self.tracks.values():
             for t in parts:
                 stats[t.id] = {}
-                for k, v in t.stats.items():
+                for k in sorted(t.stats.keys()):
+                    v = t.stats[k]
                     if isinstance(v, np.ndarray):
                         v = v.tolist()
                     stats[t.id][k] = v
@@ -193,9 +197,6 @@ class LCDataset:
             f"{k},{stat.mean()},{stat.std()}" for (k, stat) in running_std.items()
         ]
 
-        amplitudes = [t.amplitude for parts in self.tracks.values() for t in parts]
-        if amp_mean := np.mean(amplitudes) != 0:
-            lines.append(f"amplitude,{amp_mean},{np.std(amplitudes)}")
 
         with open(f"{path}/mean_std.csv", "w") as f:
             f.write('\n'.join(lines))
@@ -221,12 +222,12 @@ class LCDataset:
             )
 
     def _save_metadata(self, path):
-        metadata = ["id,label,period,amplitude,start_idx,end_idx,data"]
+        metadata = ["id,norad,label,period,timestamp,start_idx,end_idx,data"]
         for parts in self.tracks.values():
             for t in parts:
                 label = self.norad_to_label[t.norad_id].replace(",", "_")
                 file = f"data/{self._get_track_file_name(t)}.csv"
-                columns = [t.id, label, t.period, t.amplitude, t.start_idx, t.end_idx, file]
+                columns = [t.id, t.norad_id, label, t.period, t.timestamp, t.start_idx, t.end_idx, file]
                 metadata.append(",".join(map(str, columns)))
 
         with open(f"{path}/{self.name}.csv", "w") as f:

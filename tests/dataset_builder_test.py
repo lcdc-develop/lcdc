@@ -5,8 +5,8 @@ import unittest
 from collections import Counter
 
 import pandas as pd
-from dataset_builder.dataset_builder import DatasetBuilder
-from utils import Track, Variability
+from lcdc import DatasetBuilder, Track
+from lcdc.vars import Variability
 
 
 class TestDatasetBuilder(unittest.TestCase):
