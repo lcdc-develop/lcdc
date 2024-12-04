@@ -3,6 +3,7 @@ import os
 import tqdm
 from collections import defaultdict
 from typing import Dict
+from datasets import Dataset
 
 import numpy as np
 from .utils.track import Track
@@ -96,7 +97,7 @@ class LCDataset:
 
         return means, stds
 
-    def to_dict(self, data_types, stats=[]):
+    def to_dict(self, data_types):
         data = defaultdict(list)
 
         for t_id in tqdm.tqdm(list(self.tracks.keys()), desc="Preparing data"):
@@ -114,15 +115,12 @@ class LCDataset:
                 data["start_idx"].append(t.start_idx)
                 data["end_idx"].append(t.end_idx)
 
-                if stats != []:
-                    for s in stats:
-                        s(t)
-                    for k in sorted(t.stats.keys()):
-                        if k not in data:
-                            data[k] = []
-                        data[k].append(t.stats[k])
+                for k in sorted(t.stats.keys()):
+                    if k not in data:
+                        data[k] = []
+                    data[k].append(t.stats[k])
 
-        res = {"data": data}
+        res = {"data": Dataset.from_dict(data)}
 
         if self.mean_std:
             means = {dt: 0 for dt in data_types}
@@ -142,7 +140,7 @@ class LCDataset:
 
         return res
 
-    def to_file(self, path, data_types, stats=[]):
+    def to_file(self, path, data_types):
 
         os.makedirs(path, exist_ok=True)
         self._save_metadata(path)
@@ -167,8 +165,6 @@ class LCDataset:
                     for dt in running_std:
                         running_std[dt].update(t.data[:, TYPES_INDICES[dt]])
 
-                if stats != []:
-                    for s in stats: s(t)
                 if not save_stats and t.stats != {}:
                     save_stats = True
 
