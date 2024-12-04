@@ -65,8 +65,8 @@ class FilterByPeriodicity(Filter):
         self.filter_types = types
 
     def condition(self, track: Track, object: RSO) -> bool:
-        if Variability.PERIODIC in self.filter_types and track.period == 0:
-            return False
+        if Variability.PERIODIC in self.filter_types and track.period != 0:
+            return True
         return object.variability in self.filter_types
 
 class FilterByStartDate(Filter):

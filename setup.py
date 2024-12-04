@@ -9,5 +9,7 @@ setup(
     install_requires=["scikit-learn", 
                       "numpy",
                       "matplotlib", 
-                      "datasets"],
+                      "datasets",
+                      "tqdm",
+                      "strenum"],
 )

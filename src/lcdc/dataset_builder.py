@@ -17,14 +17,12 @@ class DatasetBuilder:
                  regexes=None,
                  norad_ids=None,
                  preprocessing=None,
-                 step=None,
                  split_ratio=None,
                  mean_std=False,
                  lazy=False):
         
         self.dir = directory
         self.preprocessing = preprocessing 
-        self.step = step
         self.split_ratio = split_ratio
         self.compute_mean_std = mean_std
         self.lazy = lazy

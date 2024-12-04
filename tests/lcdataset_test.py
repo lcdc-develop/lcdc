@@ -101,7 +101,6 @@ class TestDatasetBuilder(unittest.TestCase):
         d.mean_std = True
 
         dict2 = d.to_dict(ALL_TYPES)
-        print(dict2["data"].keys())
 
         d.to_file(self.data_dir, data_types=ALL_TYPES)
         dict1 = LCDataset.dict_from_file(self.data_dir)
@@ -113,8 +112,6 @@ class TestDatasetBuilder(unittest.TestCase):
                 for i in range(len(dict1["data"][k])):
                     self.assertTrue(np.all(dict1["data"][k][i] == dict2["data"][k][i]))
             else:
-                print(k, k in dict1["data"], k in dict2["data"])
-                # print(dict1["data"][k], dict2["data"][k])
                 self.assertTrue(dict1["data"][k] == dict2["data"][k])
 
 if __name__ == '__main__':

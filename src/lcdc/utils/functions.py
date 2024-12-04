@@ -129,7 +129,6 @@ def plot_track(track, mag=True, phase=False, dist=False, fourier=False, mag_phas
     
     return fig, axs
 
-
 def fold_track(data: np.ndarray, period: float) -> np.ndarray:
     # if len(data) == 113:
         # print(data[:,0], period)
