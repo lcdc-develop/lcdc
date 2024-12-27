@@ -74,17 +74,15 @@ class FilterByStartDate(Filter):
     def __init__(self, year, month, day, hour=0, minute=0, sec=0):
         date = f"{year}-{month}-{day}"
         time = f"{hour}:{minute}:{sec}"
-        self.sec = datetime_to_sec(date, time)
+        self.sec = datetime_to_sec(f'{date} {time}')
 
     def condition(self, track: Track, object: RSO) -> bool:
-        date, time = track.timestamp.split(" ")
-        return datetime_to_sec(date, time) >= self.sec
+        return datetime_to_sec(track.timestamp) >= self.sec
 
 class FilterByEndDate(FilterByStartDate):
 
     def condition(self, track: Track, object: RSO) -> bool:
-        date, time = track.timestamp.split(" ")
-        return datetime_to_sec(date, time) <= self.sec
+        return datetime_to_sec(track.timestamp) <= self.sec
 
 class FilterByNorad(Filter):
 

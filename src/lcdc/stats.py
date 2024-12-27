@@ -25,13 +25,14 @@ class ComputeStat(ABC):
 class Amplitude(ComputeStat):
 
     def compute(self, track: Track) -> Track:
-        amp = np.max(track.data[:, 1]) - np.min(track.data[:, 1])
+        ok = track.data[:, 1] != 0
+        amp = np.max(track.data[ok][:, 1]) - np.min(track.data[ok][:, 1])
         return {"Amplitude": amp}
 
 class MediumTime(ComputeStat):
 
     def compute(self, track: Track) -> Track:
-        start = datetime_to_sec(*track.timestamp.split(" "))
+        start = datetime_to_sec(track.timestamp)
         return {"MediumTime": start + np.mean(track.data[:, 0])}
 
 
@@ -74,18 +75,21 @@ class ContinousWaveletTransform(ComputeStat):
         self.scales = scales
     
     def compute(self, track: Track) -> Track:
-        num = self.length // self.step
-        lc = track_to_grid(track.data, self.length, num)
-        scales = np.arange(1, self.scales+1)
-        coef, _ = pywt.cwt(lc[:,1] ,scales,self.wavelet)
-        return {self.NAME: coef}
+        frequency = 1 / self.step
+        num = (self.length // self.step) + 1
+        if len(lc) != num:
+            lc = track_to_grid(track.data, frequency)[:,1]
+            if FourierSeries.COEFS in track.stats:
+                coefs = track.stats[FourierSeries.COEFS]
+            else:
+                period = track.period if track.period != 0 else track.data[-1,0]
+                coefs, _ = fourier_series_fit(self.order, track.data, period)
 
-if __name__ == "__main__":
-    
-    track = Track(0,0,0,0,3)
-    track.data = np.ones((100, 5))
-    track.data[:, 0] = np.arange(100) / 100 
-    track.period = 1
-    amp = 2
-    track.data[:, 1] = amp* np.sin(track.data[:, 0] * 2 * np.pi)
-    object = None
+        t = np.linspace(0, track.data[-1,0], num, endpoint=True)
+        reconstructed = get_fourier_series(self.order, period)(t, *coefs)
+        is_zero = lc == 0 
+        lc[is_zero] = reconstructed[is_zero]
+
+        scales = np.arange(1, self.scales+1)
+        coef, _ = pywt.cwt(lc, scales, self.wavelet)
+        return {self.NAME: coef}

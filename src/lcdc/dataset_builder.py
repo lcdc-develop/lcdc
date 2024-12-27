@@ -91,7 +91,7 @@ class DatasetBuilder:
         train, test, _, _ = train_test_split(X, y, test_size=1-ratio, stratify=y, random_state=seed)
 
         train_tracks = {t_id: self.tracks[t_id] for t_id in train}
-        test_tracks = {t_id: self.tracks[t_id] for t_id in test}
+        test_tracks  = {t_id: self.tracks[t_id] for t_id in test}
 
         return train_tracks, test_tracks
     

@@ -24,7 +24,7 @@ class TestStats(unittest.TestCase):
     def test_medium_time(self):
         medium_time = MediumTime()
         result = medium_time.compute(self.track)
-        start = datetime_to_sec(*self.track.timestamp.split(" "))
+        start = datetime_to_sec(self.track.timestamp)
         expected = start + np.mean(self.track.data[:, 0])
         self.assertAlmostEqual(result["MediumTime"], expected, places=5)
 

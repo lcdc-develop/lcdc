@@ -15,5 +15,6 @@ from .splits import (
     Split
 )
 from .transformations import (
-    Fold
+    Fold,
+    ToGrid,
 )

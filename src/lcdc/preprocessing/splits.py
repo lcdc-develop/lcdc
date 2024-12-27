@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 
-from ..utils import RSO, Track
+from ..utils import RSO, Track, sec_to_datetime, datetime_to_sec 
 from .preprocessor import Preprocessor
 
 class Split(Preprocessor):
@@ -20,7 +20,9 @@ class Split(Preprocessor):
         ends = indices + [len(track.data)]
         for i, arr in enumerate(np.split(track.data, indices)):
             t = Track(**track.__dict__)
+            t.timestamp = sec_to_datetime(datetime_to_sec(track.timestamp) + arr[0,0])
             t.data = arr
+            t.data[:,0] -= t.data[0,0]
             t.start_idx = start + track.start_idx
             t.end_idx = ends[i] + track.start_idx - 1
             start = t.end_idx + 1

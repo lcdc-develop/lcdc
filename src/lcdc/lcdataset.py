@@ -63,7 +63,7 @@ class LCDataset:
         means, stds = LCDataset._load_mean_std(path)
         LCDataset._load_stats_to_data(path, data)
 
-        res = {"data": data}
+        res = {"data": Dataset.from_dict(data)}
         if means != {}: res["mean"] = means
         if stds != {}: res["std"] = stds
 
@@ -71,16 +71,17 @@ class LCDataset:
     
     @staticmethod
     def _load_stats_to_data(path, data):
-        json_file = f"{path}/stats.json"
-        if os.path.exists(json_file):
-            stats = {}
-            with open(json_file, "r") as f:
-                stats = json.load(f)
-            for id in data["id"]:
-                for k in stats[str(id)]: #FIXME: check if id is in stats
-                    if k not in data:
-                        data[k] = []
-                    data[k].append(stats[str(id)][k])
+        stats = {}
+        if os.path.exists(f"{path}/stats"):
+            for s in os.listdir(f"{path}/stats"):
+                name = s[:-len(".npy")]
+                stats[name] = np.load(f"{path}/stats/{s}", allow_pickle=True).item()
+                data[name] = []
+        for id, start_idx, end_idx in zip(data["id"], data["start_idx"], data["end_idx"]):
+            for name in stats:
+                v = stats[name][(id, start_idx, end_idx)]
+                data[name].append(v)
+
 
     @staticmethod
     def _load_mean_std(path):
@@ -174,19 +175,32 @@ class LCDataset:
         if self.mean_std:
             self._save_mean_std(path, running_std)
 
+    # def _save_stats(self, path):
+    #     stats = {}
+    #     for parts in self.tracks.values():
+    #         for t in parts:
+    #             stats[t.id] = {}
+    #             for k in sorted(t.stats.keys()):
+    #                 v = t.stats[k]
+    #                 if isinstance(v, np.ndarray):
+    #                     v = v.tolist()
+    #                 stats[t.id][k] = v
+
+    #     with open(f"{path}/stats.json", "w") as f:
+    #         json.dump(stats, f)
+
     def _save_stats(self, path):
-        stats = {}
+        stats = defaultdict(dict)
         for parts in self.tracks.values():
             for t in parts:
-                stats[t.id] = {}
                 for k in sorted(t.stats.keys()):
-                    v = t.stats[k]
-                    if isinstance(v, np.ndarray):
-                        v = v.tolist()
-                    stats[t.id][k] = v
+                    stats[k][(t.id,t.start_idx,t.end_idx)] = t.stats[k]
+        
+        
+        os.makedirs(f"{path}/stats", exist_ok=True)
+        for k in stats:
+            np.save(f"{path}/stats/{k}.npy", stats[k])
 
-        with open(f"{path}/stats.json", "w") as f:
-            json.dump(stats, f)
 
     def _save_mean_std(self, path, running_std):
         lines = [",mean,std"] + [

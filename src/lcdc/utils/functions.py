@@ -12,11 +12,13 @@ from .rso import RSO
 from .track import Track
 
 
-def datetime_to_nanosec(date, time):
+def datetime_to_nanosec(timestamp):
+    date, time = timestamp.split(' ')
     sec = datetime.strptime(f'{date} {time}', f"%Y-%m-%d %H:%M:%S{'.%f' if '.' in time else ''}").timestamp()
     return int(sec * NANOSEC) 
 
-def datetime_to_sec(date, time):
+def datetime_to_sec(timestamp):
+    date, time = timestamp.split(' ')
     return datetime.strptime(f'{date} {time}', f"%Y-%m-%d %H:%M:%S{'.%f' if '.' in time else ''}").timestamp()
 
 def sec_to_datetime(sec):
@@ -140,12 +142,13 @@ def fold_track(data: np.ndarray, period: float) -> np.ndarray:
 
     return data
 
-def track_to_grid(data, length, num):
+def track_to_grid(data, sampling_frequency):
 
-    step = length / num
+    step = 1/sampling_frequency
+    num = int(data[-1,0] / step ) + 1
 
     bin_indices = np.modf(data[:,0]/ step)[1]
-    # sort bin_indices 
+
     indices = np.argsort(bin_indices)
     bin_indices = bin_indices[indices]
     data = data[indices]
@@ -153,9 +156,6 @@ def track_to_grid(data, length, num):
     # groupby bin_indices
     bin_idx, split_indices = np.unique(bin_indices, return_index=True)
     bin_values = np.split(data[:,1:], split_indices[1:], axis=0)
-    # if len(bin_idx) == 2:
-        # print(bin_idx, step, len(data))
-        # print(bin_indices, data[-1])
 
     grid = np.zeros((num, data.shape[1]))
     grid[:,0] = np.arange(num) * step
