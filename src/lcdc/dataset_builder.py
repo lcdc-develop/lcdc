@@ -98,7 +98,8 @@ class DatasetBuilder:
     def build_dataset(self) -> List[LCDataset]:
         def fun(ts: List[Track]):
             t = ts[0]
-            t.load_data_from_file(f"{self.dir}/data")
+            if t.data is None:
+                t.load_data_from_file(f"{self.dir}/data")
             parts = self.preprocessing(t, self.objects[t.norad_id])
             for p in parts:
                 for stat_fun in self.statistics:

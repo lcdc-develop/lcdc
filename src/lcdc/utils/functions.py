@@ -89,17 +89,25 @@ def plot_track(track, mag=True, phase=False, dist=False, fourier=False, mag_phas
 
         t = np.linspace(track.data[0,0], track.data[-1,0], 1000)
         period = track.period if track.period != 0 else track.data[-1,0]
-        fs = get_fourier_series(8, period)
-        coefs = fourier_series_fit(8, track.data, period)[0]
+        k = 8
+        if "FourierCoefs" in track.stats:
+            coefs = track.stats["FourierCoefs"]
+            k = len(coefs) // 2
+            fs = get_fourier_series(k, period)
+        else:
+            fs = get_fourier_series(8, period)
+            coefs = fourier_series_fit(8, track.data, period)[0]
         fit = fs(t, *coefs)
         axs[0].plot(t, fit, c='red', label="Fourier series")
+        axs[0].legend()
 
         # plot residuals
         reconstructed = fs(track.data[:,0], *coefs)
         residuals = track.data[:,1] - reconstructed
+        ok = track.data[:,1] != 0
         rms = np.sqrt(np.mean(residuals**2))
         axs[idx].set_title(f"Residuals: (RMS: {rms:.2f}, max: {residuals.max():.2f}) ")
-        axs[idx].scatter(track.data[:, 0], residuals, s=1, c='red')
+        axs[idx].scatter(track.data[:, 0][ok], residuals[ok], s=1, c='red')
         axs[idx].set_ylabel("Δ Magnitude")
         axs[idx].set_xlabel("Time [sec]")
         idx += 1
@@ -130,6 +138,43 @@ def plot_track(track, mag=True, phase=False, dist=False, fourier=False, mag_phas
     plt.tight_layout()
     
     return fig, axs
+
+def plot_from_dict(data):
+    t = Track(data["id"], data["norad_id"], data["timestamp"], 0, data["period"], data["start_idx"], data["end_idx"])
+    
+    time = None
+    mag = None
+    phase = None
+    size = t.period
+    if DataType.TIME in data:
+        time = np.array(data[DataType.TIME])
+        size = len(time)
+    else:
+        for dt in [DataType.MAG, DataType.PHASE, DataType.DISTANCE]:
+            if dt in data:
+                size = len(data[dt])
+                break
+        time = np.linspace(0, size, size)
+    if DataType.MAG in data:
+        mag = np.array(data[DataType.MAG])
+    else:
+        mag = np.zeros(size)
+    if DataType.PHASE in data:
+        phase = np.array(data[DataType.PHASE])
+    else:
+        phase = np.zeros(size)
+    if DataType.DISTANCE in data:
+        dist = np.array(data[DataType.DISTANCE])
+    else:
+        dist = np.zeros(size)
+    
+    t.data = np.stack([time, mag, phase, dist], axis=1)
+    if "FourierCoefs" in data:
+        t.stats["FourierCoefs"] = data["FourierCoefs"]
+        
+    return plot_track(t, mag=DataType.MAG in data, phase=DataType.PHASE in data, dist=DataType.DISTANCE in data, fourier="FourierCoefs" in data,
+               mag_phase=DataType.MAG in data and DataType.PHASE in data)
+
 
 def fold_track(data: np.ndarray, period: float) -> np.ndarray:
     # if len(data) == 113:

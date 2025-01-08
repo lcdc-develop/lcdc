@@ -8,7 +8,6 @@ from ..vars import Variability
 from .preprocessor import Preprocessor
 
 
-
 class Filter(Preprocessor, ABC):
 
     @abstractmethod
