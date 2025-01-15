@@ -16,19 +16,18 @@ class Split(Preprocessor):
 
     def __call__(self, record: dict):
         indices = self._find_split_indices(record)
-        start = 0
+        start = record[TC.RANGE][0]
         parts = []
         ends = indices + [len(record)]
         for i, arr in enumerate(np.split(record[TC.DATA], indices)):
             r = record.copy()
             r[TC.TIMESTAMP] = sec_to_datetime(datetime_to_sec(record[TC.TIMESTAMP]) + arr[0,0])
-            r[TC.DATA] = arr
+            r[TC.DATA] = arr.copy()
             r[TC.DATA][:,0] -= r[TC.DATA][0,0]
-            r_start = start + record[TC.START_IDX]
-            r_end =  ends[i] + record[TC.START_IDX] - 1
-            r[TC.RANGE] = (r_start, r_end)
-            start = record[TC.END_IDX] + 1
-            parts.append(record)
+            end =  record[TC.RANGE][0] + ends[i] - 1
+            r[TC.RANGE] = (start, end, ends[i])
+            start = end + 1
+            parts.append(r)
             
         return parts
 

@@ -12,7 +12,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pyarrow.compute as pc
 
-from .lcdataset import LCDataset
 from .vars import TableCols as TC
 
 
@@ -105,7 +104,7 @@ class DatasetBuilder:
 
         return train_tracks, test_tracks
     
-    def build_dataset(self) -> List[LCDataset]:
+    def build_dataset(self):
         
         table = self.table
         if self.preprocessing is not None:

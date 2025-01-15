@@ -8,8 +8,6 @@ from datetime import datetime
 from typing import List
 
 from ..vars import *
-from .rso import RSO
-from .track import Track
 
 
 def datetime_to_nanosec(timestamp):
@@ -24,29 +22,6 @@ def datetime_to_sec(timestamp):
 def sec_to_datetime(sec):
     return datetime.fromtimestamp(sec).strftime("%Y-%m-%d %H:%M:%S.%f")
 
-def load_rsos_from_csv(filename, header=True) -> List[RSO]:
-    with open(filename, 'r') as f:
-        rsos = []
-        for line in f.readlines()[1 if header else 0:]:
-            mmt_id, norad_id, name, country, var = line.strip().split(',')
-            rsos.append( RSO(int(mmt_id), int(norad_id), name, country, var))
-        return rsos
-
-def load_tracks_from_csv(filename, header=True) -> List[Track]:
-    with open(filename, 'r') as f:
-        tracks = []
-        for line in f.readlines()[1 if header else 0:]:
-            try:
-                s = line.strip().split(',')
-                id, norad_id, time, mjd, period = s[:5]
-                s_idx = 0 if len(s) < 6 else s[5]
-                e_idx = -1 if len(s) < 6 else s[6]
-
-                tracks.append( Track(int(id),int(norad_id),time,float(mjd),float(period),int(s_idx),int(e_idx)))
-            except:
-                pass
-        return tracks
-    
 def get_fourier_series(order, period=1):
     def fun(x, *coefs): 
         pi2 = 2*np.pi

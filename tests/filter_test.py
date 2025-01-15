@@ -1,10 +1,8 @@
 import unittest
 import random
-from unittest.mock import MagicMock
 import numpy as np
 
-from lcdc.utils import Track, RSO
-from lcdc.vars import Variability
+from lcdc.vars import Variability, TableCols as TC
 from lcdc.preprocessing import (
     FilterFolded, FilterMinLength, FilterByEndDate, FilterByStartDate, FilterByPeriodicity,
     FilterByNorad
@@ -13,114 +11,115 @@ from lcdc.preprocessing import (
 class TestFilterFolded(unittest.TestCase):
 
     def test_condition_true(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.data = np.zeros((5,5))
-        track.data[:,0] = np.arange(5)
-        track.data[:,1] = np.ones(5)
+        record = {TC.PERIOD: 5}
+        record[TC.DATA] = np.zeros((5,5))
+        record[TC.DATA][:,0] = np.arange(5)
+        record[TC.DATA][:,1] = np.ones(5)
         filter_folded = FilterFolded(k=5, threshold=0.5)
-        self.assertTrue(filter_folded.condition(track, MagicMock()))
+        self.assertTrue(filter_folded.condition(record))
 
     def test_condition_false(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.data = np.zeros((5,5))
-        track.data[:,0] = np.arange(5)
-        track.data[:,1] = np.zeros(5)
+        record = {TC.PERIOD: 10}
+        record[TC.DATA] = np.zeros((5,5))
+        record[TC.DATA][:,0] = np.arange(5)
+        record[TC.DATA][:,1] = np.zeros(5)
         filter_folded = FilterFolded(k=5, threshold=0.5)
-        self.assertFalse(filter_folded.condition(track, MagicMock()))
+        self.assertFalse(filter_folded.condition(record))
 
 class TestFilterMinLength(unittest.TestCase):
 
     def test_condition_true(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.data = np.zeros((5,5))
-        track.data[:,0] = np.arange(5)
+        record = {}
+        record[TC.DATA] = np.zeros((5,5))
+        record[TC.DATA][:,0] = np.arange(5)
         filter_min_length = FilterMinLength(length=5)
-        self.assertTrue(filter_min_length.condition(track, MagicMock()))
+        self.assertTrue(filter_min_length.condition(record))
 
     def test_condition_false(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.data = np.zeros((2,5))
-        track.data[:,0] = np.arange(2)
+        record = {}
+        record[TC.DATA] = np.zeros((2,5))
+        record[TC.DATA][:,0] = np.arange(2)
         filter_min_length = FilterMinLength(length=5)
-        self.assertFalse(filter_min_length.condition(track, MagicMock()))
+        self.assertFalse(filter_min_length.condition(record))
     
     def test_condition_true_step(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.data = np.zeros((5,5))
-        track.data[:,0] = np.arange(5) * 2
-        track.data[:,1] = np.ones(5)
+        record = {}
+        record[TC.DATA] = np.zeros((5,5))
+        record[TC.DATA][:,0] = np.arange(5) * 2
+        record[TC.DATA][:,1] = np.ones(5)
         filter_min_length = FilterMinLength(length=5, step=2)
-        self.assertTrue(filter_min_length.condition(track, MagicMock()))
+        self.assertTrue(filter_min_length.condition(record))
 
         filter_min_length = FilterMinLength(length=2, step=5)
-        self.assertTrue(filter_min_length.condition(track, MagicMock()))
+        self.assertTrue(filter_min_length.condition(record))
 
     def test_condition_false_step(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.data = np.zeros((5,5))
-        track.data[:,0] = np.arange(5) 
-        track.data[:,1] = np.ones(5)
+        record = {}
+        record[TC.DATA] = np.zeros((5,5))
+        record[TC.DATA][:,0] = np.arange(5) 
+        record[TC.DATA][:,1] = np.ones(5)
         filter_min_length = FilterMinLength(length=5, step=2)
-        self.assertFalse(filter_min_length.condition(track, MagicMock()))
+        self.assertFalse(filter_min_length.condition(record))
 
 class TestFilterByEndDate(unittest.TestCase):
     
     def test_condition_true(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.timestamp = "2021-01-01 00:00:00"
+        record = {}
+        record[TC.TIMESTAMP] = "2021-01-01 00:00:00"
         filter_end_date = FilterByEndDate(year=2021, month=2, day=1, hour=0, minute=0, sec=0)
-        self.assertTrue(filter_end_date.condition(track, MagicMock()))
+        self.assertTrue(filter_end_date.condition(record))
         filter_end_date = FilterByEndDate(year=2021, month=1, day=1, hour=0, minute=0, sec=1)
-        self.assertTrue(filter_end_date.condition(track, MagicMock()))
+        self.assertTrue(filter_end_date.condition(record))
     
     def test_condition_false(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.timestamp = "2021-02-01 00:00:00"
+        record = {}
+        record[TC.TIMESTAMP] = "2021-02-01 00:00:00"
         filter_end_date = FilterByEndDate(year=2021, month=1, day=1, hour=0, minute=0, sec=0)
-        self.assertFalse(filter_end_date.condition(track, MagicMock()))
+        self.assertFalse(filter_end_date.condition(record))
         filter_end_date = FilterByEndDate(year=2021, month=1, day=31, hour=23, minute=59, sec=59)
-        self.assertFalse(filter_end_date.condition(track, MagicMock()))
+        self.assertFalse(filter_end_date.condition(record))
 
         
 class TestFilterByStartDate(unittest.TestCase):
     
     def test_condition_false(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.timestamp = "2021-01-01 00:00:00"
+        record = {}
+        record[TC.TIMESTAMP] = "2021-01-01 00:00:00"
         filter_end_date = FilterByStartDate(year=2021, month=2, day=1, hour=0, minute=0, sec=0)
-        self.assertFalse(filter_end_date.condition(track, MagicMock()))
+        self.assertFalse(filter_end_date.condition(record))
         filter_end_date = FilterByStartDate(year=2021, month=1, day=1, hour=0, minute=0, sec=1)
-        self.assertFalse(filter_end_date.condition(track, MagicMock()))
+        self.assertFalse(filter_end_date.condition(record))
     
     def test_condition_true(self):
-        track = Track(0,0,0,0,5,0,-1)
-        track.timestamp = "2021-02-01 00:00:00"
+        record = {}
+        record[TC.TIMESTAMP] = "2021-02-01 00:00:00"
         filter_end_date = FilterByStartDate(year=2021, month=1, day=1, hour=0, minute=0, sec=0)
-        self.assertTrue(filter_end_date.condition(track, MagicMock()))
+        self.assertTrue(filter_end_date.condition(record))
         filter_end_date = FilterByStartDate(year=2021, month=1, day=31, hour=23, minute=59, sec=59)
-        self.assertTrue(filter_end_date.condition(track, MagicMock()))
+        self.assertTrue(filter_end_date.condition(record))
 
 class TestFilterByPeriodicity(unittest.TestCase):
     
     def test_condition_true(self):
-        rso = RSO(0,0,"", "", Variability.PERIODIC)
+        record = {TC.PERIOD: 10}
 
         for v in Variability:
-            rso.variability = v
+            record[TC.VARIABILITY] = v
             filter_periodicity = FilterByPeriodicity(v)
-            self.assertTrue(filter_periodicity.condition(MagicMock(), rso))
+            self.assertTrue(filter_periodicity.condition(record))
 
 class TestFilterByNorad(unittest.TestCase):
     
     def test_condition_true(self):
-        rso = RSO(0,1,"", "", Variability.PERIODIC)
+        record = {TC.NORAD_ID: 1}
 
         indices = [random.randint(0,100) for i in range(10)]
         indices.append(1)
-        self.assertTrue(FilterByNorad(indices).condition(MagicMock(), rso))
+        self.assertTrue(FilterByNorad(indices).condition(record))
 
     def test_condition_false(self):
-        rso = RSO(0,1,"", "", Variability.PERIODIC)
+        record = {TC.NORAD_ID: 1}
 
         indices = [random.randint(2,100) for i in range(10)]
-        self.assertFalse(FilterByNorad(indices).condition(MagicMock(), rso))
+        self.assertFalse(FilterByNorad(indices).condition(record))
+
