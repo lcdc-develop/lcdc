@@ -74,6 +74,8 @@ def plot_track(track, mag=True, phase=False, dist=False, fourier=False, mag_phas
     height_ratios = [r for r, b in zip([6,2,4,4,4], [mag, fourier,mag_phase, phase, dist]) if b]
 
     fig, axs = plt.subplots(n_plots,1, gridspec_kw={"height_ratios": height_ratios}, figsize=(10, 2*n_plots))
+    if n_plots == 1:
+        axs = [axs]
 
     idx = 0
     axs[-1].set_xlabel("Time [sec]")
