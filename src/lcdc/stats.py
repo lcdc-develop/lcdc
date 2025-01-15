@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 import pywt
 
+from .vars import TableCols as TC
 from .utils import (
-    Track,
     fourier_series_fit,
     get_fourier_series,
     datetime_to_sec,
@@ -16,30 +16,30 @@ class ComputeStat(ABC):
     NAME = "ComputeStat"
     
     @abstractmethod
-    def compute(self, track: Track) -> Track:
+    def compute(self, record: dict):
         pass
 
-    def __call__(self, track: Track) -> Track:
-        track.stats.update(self.compute(track))
+    def __call__(self, record: dict):
+        record.update(self.compute(record))
 
 class Amplitude(ComputeStat):
 
-    def compute(self, track: Track) -> Track:
-        ok = track.data[:, 1] != 0
-        amp = np.max(track.data[ok][:, 1]) - np.min(track.data[ok][:, 1])
+    def compute(self, record: dict):
+        ok = record[TC.DATA][:, 1] != 0
+        amp = np.max(record[TC.DATA][ok][:, 1]) - np.min(record[TC.DATA][ok][:, 1])
         return {"Amplitude": amp}
 
 class MediumTime(ComputeStat):
 
-    def compute(self, track: Track) -> Track:
-        start = datetime_to_sec(track.timestamp)
-        return {"MediumTime": start + np.mean(track.data[:, 0])}
+    def compute(self, record: dict):
+        start = datetime_to_sec(record[TC.TIMESTAMP])
+        return {"MediumTime": start + np.mean(record[TC.DATA][:, 0])}
 
 
 class MediumPhase(ComputeStat):
 
-    def compute(self, track: Track) -> Track:
-        return {"MediumPhase": np.mean(track.data[:, 2])}
+    def compute(self, record: dict):
+        return {"MediumPhase": np.mean(record[TC.DATA][:, 2])}
 
 class FourierSeries(ComputeStat):
     COEFS = "FourierCoefs"
@@ -50,11 +50,11 @@ class FourierSeries(ComputeStat):
         self.fs = fs
         self.amplitude = amplitude
     
-    def compute(self, track: Track) -> Track:
-        period = track.period if track.period != 0 else track.data[-1,0]
-        coefs, _ = fourier_series_fit(self.order, track.data, period)
+    def compute(self, record: dict):
+        period = record[TC.PERIOD] if record[TC.PERIOD] != 0 else record[TC.DATA][-1,0]
+        coefs, _ = fourier_series_fit(self.order, record[TC.DATA], period)
 
-        t = np.linspace(0, track.data[-1,0], 1000)
+        t = np.linspace(0, record[TC.DATA][-1,0], 1000)
         reconstructed = get_fourier_series(self.order, period)(t, *coefs)
         amplitude = np.max(reconstructed) - np.min(reconstructed)
         res = {}
@@ -74,18 +74,18 @@ class ContinousWaveletTransform(ComputeStat):
         self.length = length
         self.scales = scales
     
-    def compute(self, track: Track) -> Track:
+    def compute(self, record: dict):
         frequency = 1 / self.step
         num = (self.length // self.step) + 1
         if len(lc) != num:
-            lc = track_to_grid(track.data, frequency)[:,1]
-            if FourierSeries.COEFS in track.stats:
-                coefs = track.stats[FourierSeries.COEFS]
+            lc = track_to_grid(record[TC.DATA], frequency)[:,1]
+            if FourierSeries.COEFS in record[TC.STATS]:
+                coefs = record[TC.STATS][FourierSeries.COEFS]
             else:
-                period = track.period if track.period != 0 else track.data[-1,0]
-                coefs, _ = fourier_series_fit(self.order, track.data, period)
+                period = record[TC.PERIOD] if record[TC.PERIOD] != 0 else record[TC.DATA][-1,0]
+                coefs, _ = fourier_series_fit(self.order, record[TC.DATA], period)
 
-        t = np.linspace(0, track.data[-1,0], num, endpoint=True)
+        t = np.linspace(0, record[TC.DATA][-1,0], num, endpoint=True)
         reconstructed = get_fourier_series(self.order, period)(t, *coefs)
         is_zero = lc == 0 
         lc[is_zero] = reconstructed[is_zero]

@@ -1,15 +1,20 @@
 import re
 from typing import List
 from tqdm import tqdm
+import os
+import glob
 
 import numpy as np
 from sklearn.model_selection import train_test_split
 from datasets import load_dataset
 
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pyarrow.compute as pc
+
 from .lcdataset import LCDataset
-from .utils.track import Track
-from .utils.rso import RSO
-from .utils.functions import load_rsos_from_csv, load_tracks_from_csv
+from .vars import TableCols as TC
+
 
 class DatasetBuilder:
     
@@ -43,35 +48,40 @@ class DatasetBuilder:
 
         regexes = regexes if regexes is not None else classes
         self.regexes = {c:re.compile(r) for c,r in zip(classes, regexes)}
-        self.objects, self.tracks, self.labels = self.load_data()
+        self.table = self.load_data()
 
 
 
         print(f"Loaded {len(self.objects)} objects and {len(self.tracks)} tracks")
 
     def load_data(self):
-        object_list = load_rsos_from_csv(f"{self.dir}/rso.csv")
+
+        parquet_files = glob.glob(f"{self.dir}/*.parquet")
+        dataset = pq.ParquetDataset(parquet_files)
+        table = dataset.read()
+
 
         if self.norad_ids is not None:
-            object_list = list(filter(lambda x: x.norad_id in self.norad_ids, object_list))
+            mask = pc.is_in(table[TC.NORAD_ID], value_set=self.norad_ids)
+            table = table.filter(mask)
 
-        label_list = list(map(self._get_label, object_list))
+        names = list(map(lambda x: x.as_py(), table[TC.NAME]))
+        labels = list(map(self._get_label, names))
+        table = table.append_column(TC.LABEL, pa.array(labels))
 
-        objects = {o.norad_id: o for o, l in zip(object_list, label_list) if l is not None}
+        if self.classes is not None:
+            table = table.filter(pc.field(TC.LABEL) != 'Unknown')
 
+        splits = [(0,len(x)) for x in table[TC.DATA]]
+        table = table.append_column(TC.RANGE, pa.array(splits))
 
-        labels  = {o.norad_id: l for o, l in zip(object_list, label_list) if l is not None}
-
-        track_list = load_tracks_from_csv(f"{self.dir}/tracks.csv")
-        tracks = {t.id: [t] for t in track_list if t.norad_id in objects}
-        
-        return objects, tracks, labels
+        return table
     
     def _get_label(self, rso):
         for c, r in self.regexes.items():
             if r.match(rso.name) is not None:
                 return c
-        return None
+        return 'Unknown'
     
     def split_train_test(self, ratio=0.8, seed=None):
 
@@ -96,43 +106,35 @@ class DatasetBuilder:
         return train_tracks, test_tracks
     
     def build_dataset(self) -> List[LCDataset]:
-        def fun(ts: List[Track]):
-            t = ts[0]
-            if t.data is None:
-                t.load_data_from_file(f"{self.dir}/data")
-            parts = self.preprocessing(t, self.objects[t.norad_id])
-            for p in parts:
-                for stat_fun in self.statistics:
-                    stat_fun(p)
-                    
-            if self.lazy:
-                for p in parts:
-                    if self.lazy: p.unload_data()
-            return parts
-                
+        
+        table = self.table
         if self.preprocessing is not None:
 
-            new_tracks = {}
-            for ts in tqdm(self.tracks.values(), desc="Preprocessing"):
-                if (res := fun(ts)) != []:
-                    new_tracks[ts[0].id] = res
-                    
-            # self.tracks = {ts[0].id: res for ts in self.tracks.values() if (res := fun(ts)) != []}
-            self.tracks = new_tracks
-            objects_to_be_removed = set(self.objects) - set([self.tracks[i][0].norad_id for i in self.tracks])
-            for o_id in objects_to_be_removed:
-                del self.objects[o_id]
+            new_table = None
+            for i in range(len(table)):
+                splits = table[TC.SPLITS][i].as_py()
+                t = table.splice(i,1).to_pydict()
+                data = t[TC.DATA].values.to_numpy(zero_copy_only=False)
+                for a,b in splits:
+                    t2 = t.copy()
+                    t2[TC.DATA] = np.array(data[a:b])
+                    records = self.preprocessing(t2)
+                    if records != []:
+                        if new_table is None:
+                            new_table = pa.table(records)
+                        else:
+                            new_table = pa.concat_tables([new_table, pa.table(records)])
+
+            self.table = new_table 
         
-        
+        # TODO: Splitting
         datasets = []
         if self.split_ratio is None:
-            datasets = [LCDataset(self.tracks, self.labels, self.dir, self.compute_mean_std,"data")]
+            datasets = [None]
         else:
             train_tracks, test_tracks = self.split_train_test(self.split_ratio)
-            datasets = [LCDataset(train_tracks, self.labels, 
-                              self.dir, self.compute_mean_std, "train"), 
-                        LCDataset(test_tracks, self.labels, 
-                              self.dir, self.compute_mean_std, "test") ]
+            datasets = [None, None]
+
         return datasets
     
     def to_file(self, path, data_types=[]):

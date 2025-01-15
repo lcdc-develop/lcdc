@@ -4,29 +4,31 @@ from typing import List
 
 import numpy as np
 
-from ..utils import RSO, Track, sec_to_datetime, datetime_to_sec 
+from ..vars import TableCols as TC
+from ..utils import sec_to_datetime, datetime_to_sec 
 from .preprocessor import Preprocessor
 
 class Split(Preprocessor):
 
     @abstractmethod
-    def _find_split_indices(self, track: Track, object: RSO):
+    def _find_split_indices(self, record: dict):
         pass
 
-    def __call__(self, track: Track, object: RSO) -> List[Track]:
-        indices = self._find_split_indices(track, object)
+    def __call__(self, record: dict):
+        indices = self._find_split_indices(record)
         start = 0
         parts = []
-        ends = indices + [len(track.data)]
-        for i, arr in enumerate(np.split(track.data, indices)):
-            t = Track(**track.__dict__)
-            t.timestamp = sec_to_datetime(datetime_to_sec(track.timestamp) + arr[0,0])
-            t.data = arr
-            t.data[:,0] -= t.data[0,0]
-            t.start_idx = start + track.start_idx
-            t.end_idx = ends[i] + track.start_idx - 1
-            start = t.end_idx + 1
-            parts.append(t)
+        ends = indices + [len(record)]
+        for i, arr in enumerate(np.split(record[TC.DATA], indices)):
+            r = record.copy()
+            r[TC.TIMESTAMP] = sec_to_datetime(datetime_to_sec(record[TC.TIMESTAMP]) + arr[0,0])
+            r[TC.DATA] = arr
+            r[TC.DATA][:,0] -= r[TC.DATA][0,0]
+            r_start = start + record[TC.START_IDX]
+            r_end =  ends[i] + record[TC.START_IDX] - 1
+            r[TC.RANGE] = (r_start, r_end)
+            start = record[TC.END_IDX] + 1
+            parts.append(record)
             
         return parts
 
@@ -35,10 +37,10 @@ class SplitByGaps(Split):
     def __init__(self, max_length=None):
         self.max_length = max_length
     
-    def _find_split_indices(self, track: Track, object: RSO):
-        data = track.data
+    def _find_split_indices(self, record: dict):
+        data = record[TC.DATA]
         time_diff = data[1:,0] - data[:-1,0]
-        split_indices, = np.where(time_diff > track.period)
+        split_indices, = np.where(time_diff > record[TC.PERIOD])
 
         if self.max_length is not None:  # connect parts if sum of lengths is less than max_length
             beginnings = data[np.concatenate(([0], split_indices+1)),0]
@@ -77,11 +79,11 @@ class SplitByRotationalPeriod(Split):
     def __init__(self, multiple=1):
         self.multiple = multiple
     
-    def _find_split_indices(self, track: Track, object: RSO):
-        if track.period == 0:
+    def _find_split_indices(self, record: dict):
+        if record[TC.PERIOD] == 0:
             return [] 
         
-        return SplitBySize(track.period * self.multiple)._find_split_indices(track, object)
+        return SplitBySize(record[TC.PERIOD] * self.multiple)._find_split_indices(record)
 
 class SplitBySize(Split):
 
@@ -89,24 +91,24 @@ class SplitBySize(Split):
         self.max_length = max_length
         self.uniform = uniform
 
-    def _find_split_indices(self, track: Track, object: RSO):
+    def _find_split_indices(self, record: dict):
 
         split_indices = []
-        length = track.data[-1,0] - track.data[0,0] + 1
+        length = record[TC.DATA][-1,0] - record[TC.DATA][0,0] + 1
         max_length = self.max_length
         if length > max_length:
             if self.uniform:
                 max_length = (length / math.ceil(length / max_length))
 
             i = 0
-            while i < len(track.data):
+            while i < len(record[TC.DATA]):
                 start_idx = i
-                t_start = track.data[start_idx,0]
+                t_start = record[TC.DATA][start_idx,0]
 
-                while i < len(track.data) and track.data[i,0] - t_start < max_length:
+                while i < len(record[TC.DATA]) and record[TC.DATA][i,0] - t_start < max_length:
                     i += 1
 
-                if i < len(track.data):
+                if i < len(record[TC.DATA]):
                     split_indices.append(i)
 
         return split_indices

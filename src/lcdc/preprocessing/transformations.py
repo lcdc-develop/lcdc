@@ -2,19 +2,19 @@ from typing import List
 
 import numpy as np
 
-from ..utils import RSO, Track, fold_track, track_to_grid
+from ..vars import TableCols as TC
+from ..utils import fold_track, track_to_grid
 from .preprocessor import Preprocessor
 
 class Fold(Preprocessor):
 
-    def __call__(self, t: Track, object: RSO) -> List[Track]:
+    def __call__(self, record: dict):
 
-        data = fold_track(t.data, t.period)
+        data = fold_track(record[TC.DATA], record[TC.PERIOD])
 
-        new_track = Track(**t.__dict__)
-        new_track.data = data
+        record[TC.DATA] = data
 
-        return [new_track]
+        return [record]
     
 class ToGrid(Preprocessor):
     
@@ -22,18 +22,17 @@ class ToGrid(Preprocessor):
         self.frequency = sampling_frequency
         self.size = size
     
-    def __call__(self, t: Track, object: RSO) -> List[Track]:
-        data = t.data
+    def __call__(self, record: dict):
+        data = record[TC.DATA]
 
-        t.data = track_to_grid(data, self.frequency)
+        record[TC.DATA] = track_to_grid(data, self.frequency)
         #
-        if t.data.shape[0]< self.size:
-            new_data = np.zeros((self.size, t.data.shape[1]))
-            new_data[:t.data.shape[0]] = t.data
-            t.data = new_data
-        if t.data.shape[0] > self.size:
-            t.data = t.data[:self.size]
+        if record[TC.DATA].shape[0]< self.size:
+            new_data = np.zeros((self.size, record[TC.DATA].shape[1]))
+            new_data[:record[TC.DATA].shape[0]] = record[TC.DATA]
+            record[TC.DATA] = new_data
+        if record[TC.DATA].shape[0] > self.size:
+            record[TC.DATA] = record[TC.record[TC.DATA]][:self.size]
 
-        new_track = Track(**t.__dict__)
-        return [new_track]
+        return [record]
     

@@ -16,11 +16,10 @@ class Compose(Preprocessor):
     def __init__(self, *funs: Preprocessor) -> None:
         self.funs = funs
 
-    def __call__(self, track: Track, object: RSO) -> List[Track]:
-        tracks = [track]
+    def __call__(self, record: dict) -> List[Track]:
+        records = [record]
         for f in self.funs:
-            f = partial(f, object=object)
-            if (tracks := reduce(list.__add__, map(f, tracks))) == []:
+            if (records := reduce(list.__add__, map(f, records))) == []:
                 break
 
-        return tracks
+        return records

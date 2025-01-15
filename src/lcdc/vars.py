@@ -4,6 +4,16 @@ from enum import IntEnum, StrEnum
 NANOSEC = 10 ** 9
 TENTH_OF_SECOND =  NANOSEC // 10
 
+class TableCols(StrEnum):
+    NORAD_ID = 'norad_id'
+    TIMESTAMP = 'timestamp'
+    PERIOD = 'period'
+    DATA = 'data'
+    VARIABILITY = 'variability'
+    NAME = 'name'
+    LABEL = 'label'
+    RANGE = 'range'
+
 class StrVars(StrEnum):
     FOURIER_COEFS = 'fourier_coefs'
     WAVELET = "wavelet"
