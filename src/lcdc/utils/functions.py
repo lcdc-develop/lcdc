@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import List
 
 from ..vars import *
+from ..vars import TableCols as TC, DATA_COLS
 
 
 def datetime_to_nanosec(timestamp):
@@ -33,11 +34,11 @@ def get_fourier_series(order, period=1):
         return y
     return fun
 
-def fourier_series_fit(order, data, period):
-    non_zero = data[:,1] != 0
+def fourier_series_fit(order, record, period):
+    non_zero = record[TC.MAG] != 0
     return optimize.curve_fit(get_fourier_series(order, period), 
-                                            xdata=data[:,0][non_zero],
-                                            ydata=data[:,1][non_zero],
+                                            xdata=record[TC.TIME][non_zero],
+                                            ydata=record[TC.MAG][non_zero],
                                             p0=np.ones(2*order+1),
                                             absolute_sigma=False,
                                             method="lm",
@@ -153,41 +154,49 @@ def plot_from_dict(data):
                mag_phase=DataType.MAG in data and DataType.PHASE in data)
 
 
-def fold_track(data: np.ndarray, period: float) -> np.ndarray:
-    # if len(data) == 113:
-        # print(data[:,0], period)
-    data = data.copy()
-    time = np.modf(data[:,0] / period)[0]
+def fold(record, period: float):
+    record = record.copy()
+    time = np.modf(record[TC.TIME] / period)[0]
     indices = np.argsort(time)
-    data = data[indices]
-    data[:,0] = time[indices]
+    for c in filter(lambda x: x in record, DATA_COLS):
+        if c == TC.TIME: continue
+        record[c] = record[c][indices]
+    record[TC.TIME] = time[indices]
+    return record
 
-    return data
-
-def track_to_grid(data, sampling_frequency):
-
+def to_grid(record, sampling_frequency):
+    record = record.copy()
     step = 1/sampling_frequency
-    num = int(data[-1,0] / step ) + 1
+    num = int(record[TC.TIME][-1] / step + 1e-5 ) + 1
 
-    bin_indices = np.modf(data[:,0]/ step)[1]
+    bin_indices = np.modf(record[TC.TIME]/ step)[1]
 
     indices = np.argsort(bin_indices)
     bin_indices = bin_indices[indices]
-    data = data[indices]
+    for c in filter(lambda x: x in record, DATA_COLS):
+        record[c] = record[c][indices]
 
     # groupby bin_indices
     bin_idx, split_indices = np.unique(bin_indices, return_index=True)
-    bin_values = np.split(data[:,1:], split_indices[1:], axis=0)
+    # bin_values = np.split(data[:,1:], split_indices[1:], axis=0)
+    values = {c: record[c].copy() for c in filter(lambda x: x in record, DATA_COLS)}
 
-    grid = np.zeros((num, data.shape[1]))
-    grid[:,0] = np.arange(num) * step
+    ends = list(split_indices[1:])+[num]
 
-    for idx, values in zip(bin_idx, bin_values):
+    for c in filter(lambda x: x in record, DATA_COLS):
+        record[c] = np.zeros(num)
+    record[TC.TIME] = np.arange(num) * step
+
+    start = 0
+    for idx, end in zip(bin_idx, ends):
         idx = int(idx)
-        grid[idx, 1:-1] = np.mean(values[:,:-1], axis=0)
-        # XOR the Filter column
-        grid[idx, -1] = reduce(operator.xor, values[:,-1].astype(np.int16))
+        for c in filter(lambda x: x in record, DATA_COLS):
+            if c == TC.TIME: continue
+            if c == TC.FILTER:
+                record[c][idx] = reduce(operator.xor, values[c][start:end].astype(np.int16),0)
+            else:
+                record[c][idx] = np.mean(values[c][start:end])
+        start = end
 
-
-    return grid
+    return record
         

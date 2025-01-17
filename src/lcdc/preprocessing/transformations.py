@@ -1,38 +1,55 @@
 from typing import List
+from abc import abstractmethod
 
 import numpy as np
 
-from ..vars import TableCols as TC
-from ..utils import fold_track, track_to_grid
+from ..vars import DATA_COLS, TableCols as TC
+from ..utils import fold, to_grid
 from .preprocessor import Preprocessor
 
-class Fold(Preprocessor):
+class Transformator(Preprocessor):
 
-    def __call__(self, record: dict):
+    @abstractmethod
+    def transform(self, record: dict):
+        pass
 
-        data = fold_track(record[TC.DATA], record[TC.PERIOD])
-
-        record[TC.DATA] = data
-
-        return [record]
+    def __call__(self, record: dict) -> List[dict]:
+        return [self.transform(record)]
     
-class ToGrid(Preprocessor):
+
+class Fold(Transformator):
+
+    def transform(self, record: dict):
+        record = fold(record, record[TC.PERIOD])
+        return record
+    
+class ToGrid(Transformator):
     
     def __init__(self, sampling_frequency: float, size: int):
         self.frequency = sampling_frequency
         self.size = size
     
-    def __call__(self, record: dict):
-        data = record[TC.DATA]
+    def transform(self, record: dict):
 
-        record[TC.DATA] = track_to_grid(data, self.frequency)
+        record = to_grid(record, self.frequency)
         #
-        if record[TC.DATA].shape[0]< self.size:
-            new_data = np.zeros((self.size, record[TC.DATA].shape[1]))
-            new_data[:record[TC.DATA].shape[0]] = record[TC.DATA]
-            record[TC.DATA] = new_data
-        if record[TC.DATA].shape[0] > self.size:
-            record[TC.DATA] = record[TC.record[TC.DATA]][:self.size]
+        if record[TC.TIME].shape[0]< self.size:
+            for c in filter(lambda x: x in record, DATA_COLS):
+                record[c] = np.concatenate([record[c], np.zeros(self.size - len(record[c]))])
 
-        return [record]
+        if record[TC.DATA].shape[0] > self.size:
+            for c in filter(lambda x: x in record, DATA_COLS):
+                record[c] = record[c][:self.size]
+
+        return record
+
+class DropColumns(Transformator):
+    
+    def __init__(self, columns: List[str]):
+        self.columns = columns
+    
+    def transform(self, record: dict):
+        for c in self.columns:
+            del record[c]
+        return record
     

@@ -5,6 +5,6 @@ from .functions import (
     plot_from_dict,
     get_fourier_series,
     fourier_series_fit,
-    track_to_grid,
-    fold_track,
+    to_grid,
+    fold,
 )

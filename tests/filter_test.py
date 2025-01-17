@@ -2,7 +2,7 @@ import unittest
 import random
 import numpy as np
 
-from lcdc.vars import Variability, TableCols as TC
+from lcdc.vars import Variability, TableCols as TC, DATA_COLS
 from lcdc.preprocessing import (
     FilterFolded, FilterMinLength, FilterByEndDate, FilterByStartDate, FilterByPeriodicity,
     FilterByNorad
@@ -10,43 +10,47 @@ from lcdc.preprocessing import (
 
 class TestFilterFolded(unittest.TestCase):
 
-    def test_condition_true(self):
+    def _get_record(self):
         record = {TC.PERIOD: 5}
-        record[TC.DATA] = np.zeros((5,5))
-        record[TC.DATA][:,0] = np.arange(5)
-        record[TC.DATA][:,1] = np.ones(5)
+        for c in filter(lambda x: x in record, DATA_COLS):
+            record[c] = np.ones(5)
+        return record
+
+    def test_condition_true(self):
+        record = self._get_record()
+        record[TC.TIME] = np.arange(5)
         filter_folded = FilterFolded(k=5, threshold=0.5)
         self.assertTrue(filter_folded.condition(record))
 
     def test_condition_false(self):
-        record = {TC.PERIOD: 10}
-        record[TC.DATA] = np.zeros((5,5))
-        record[TC.DATA][:,0] = np.arange(5)
-        record[TC.DATA][:,1] = np.zeros(5)
+        record = self._get_record()
+        record[TC.TIME] = np.arange(5)
+        record[TC.PERIOD] = 10
+        record[TC.MAG] = np.zeros(5)
         filter_folded = FilterFolded(k=5, threshold=0.5)
         self.assertFalse(filter_folded.condition(record))
 
 class TestFilterMinLength(unittest.TestCase):
 
+    def _get_record(self):
+        record = {TC.PERIOD: 5}
+        for c in filter(lambda x: x in record, DATA_COLS):
+            record[c] = np.ones(5)
+        return record
+
     def test_condition_true(self):
-        record = {}
-        record[TC.DATA] = np.zeros((5,5))
-        record[TC.DATA][:,0] = np.arange(5)
+        record = self._get_record()
         filter_min_length = FilterMinLength(length=5)
         self.assertTrue(filter_min_length.condition(record))
 
     def test_condition_false(self):
-        record = {}
-        record[TC.DATA] = np.zeros((2,5))
-        record[TC.DATA][:,0] = np.arange(2)
-        filter_min_length = FilterMinLength(length=5)
+        record = self._get_record()
+        filter_min_length = FilterMinLength(length=10)
         self.assertFalse(filter_min_length.condition(record))
     
     def test_condition_true_step(self):
-        record = {}
-        record[TC.DATA] = np.zeros((5,5))
-        record[TC.DATA][:,0] = np.arange(5) * 2
-        record[TC.DATA][:,1] = np.ones(5)
+        record = self._get_record()
+        record[TC.TIME] = np.arange(5)*2
         filter_min_length = FilterMinLength(length=5, step=2)
         self.assertTrue(filter_min_length.condition(record))
 
@@ -54,10 +58,7 @@ class TestFilterMinLength(unittest.TestCase):
         self.assertTrue(filter_min_length.condition(record))
 
     def test_condition_false_step(self):
-        record = {}
-        record[TC.DATA] = np.zeros((5,5))
-        record[TC.DATA][:,0] = np.arange(5) 
-        record[TC.DATA][:,1] = np.ones(5)
+        record = self._get_record()
         filter_min_length = FilterMinLength(length=5, step=2)
         self.assertFalse(filter_min_length.condition(record))
 

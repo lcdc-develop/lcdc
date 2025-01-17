@@ -5,14 +5,21 @@ NANOSEC = 10 ** 9
 TENTH_OF_SECOND =  NANOSEC // 10
 
 class TableCols(StrEnum):
+    ID = 'id'
     NORAD_ID = 'norad_id'
     TIMESTAMP = 'timestamp'
     PERIOD = 'period'
-    DATA = 'data'
+    TIME = 'time'
+    MAG = 'mag'
+    PHASE = 'phase'
+    DISTANCE = 'distance'
+    FILTER = 'filter'
     VARIABILITY = 'variability'
     NAME = 'name'
     LABEL = 'label'
     RANGE = 'range'
+
+DATA_COLS = [TableCols.TIME, TableCols.MAG, TableCols.PHASE, TableCols.DISTANCE, TableCols.FILTER]
 
 class StrVars(StrEnum):
     FOURIER_COEFS = 'fourier_coefs'

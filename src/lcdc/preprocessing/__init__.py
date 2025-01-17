@@ -17,4 +17,5 @@ from .splits import (
 from .transformations import (
     Fold,
     ToGrid,
+    DropColumns,
 )

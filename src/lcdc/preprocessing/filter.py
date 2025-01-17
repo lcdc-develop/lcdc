@@ -29,13 +29,13 @@ class FilterFolded(Filter):
         period = record[TC.PERIOD]
 
         folded = np.zeros(self.k)
-        t = record[TC.DATA][:,0]
+        t = record[TC.TIME]
         phases = t / (period + 1e-10)
         indices = np.round((phases - np.floor(phases)) * self.k).astype(int)
         for idx in range(self.k):
             x, = np.where(indices == idx)
             if len(x) > 0:
-                folded[idx] = record[TC.DATA][x,1].mean()
+                folded[idx] = record[TC.MAG][x].mean()
 
         return np.sum(folded != 0) / self.k >= self.threshold
 
@@ -47,10 +47,10 @@ class FilterMinLength(Filter):
 
     def condition(self, record: dict) -> bool:
         if self.step is None:
-            return len(record[TC.DATA]) >= self.length
+            return len(record[TC.TIME]) >= self.length
 
         indices = set()
-        for t in record[TC.DATA][:,0]:
+        for t in record[TC.TIME]:
             idx = np.round(t/self.step).astype(int)
             indices.add(idx)
             if len(indices) >= self.length:
