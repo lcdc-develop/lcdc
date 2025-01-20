@@ -33,11 +33,12 @@ class ToGrid(Transformator):
 
         record = to_grid(record, self.frequency)
         #
-        if record[TC.TIME].shape[0]< self.size:
+        some = list(filter(lambda x: x in record, DATA_COLS))[0]
+        if len(record[some]) < self.size:
             for c in filter(lambda x: x in record, DATA_COLS):
                 record[c] = np.concatenate([record[c], np.zeros(self.size - len(record[c]))])
 
-        if record[TC.DATA].shape[0] > self.size:
+        if len(record[some]) > self.size:
             for c in filter(lambda x: x in record, DATA_COLS):
                 record[c] = record[c][:self.size]
 

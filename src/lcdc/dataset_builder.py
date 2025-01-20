@@ -92,7 +92,7 @@ class DatasetBuilder:
 
         table = self.table
         new_table = None
-        for i in range(len(table)):
+        for i in tqdm(range(len(table)),desc="Preprocessing"):
             t = table.slice(i,1).to_pylist()[0]
             for c in DATA_COLS:
                 if c in t:

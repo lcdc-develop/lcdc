@@ -44,62 +44,73 @@ def fourier_series_fit(order, record, period):
                                             method="lm",
                                             maxfev=10000)
 
-def plot_track(track, mag=True, phase=False, dist=False, fourier=False, mag_phase=False):
+def plot_track(record):
 
-    n_plots = sum([mag, phase, dist, fourier, mag_phase])
+    
+    mag = TC.MAG in record
+    fourier = "FourierCoefs" in record
+    mag_phase = TC.MAG in record and TC.PHASE in record
+    phase = TC.PHASE in record
+    dist = TC.DISTANCE in record
+
     height_ratios = [r for r, b in zip([6,2,4,4,4], [mag, fourier,mag_phase, phase, dist]) if b]
+    n_plots = len(height_ratios)
 
     fig, axs = plt.subplots(n_plots,1, gridspec_kw={"height_ratios": height_ratios}, figsize=(10, 2*n_plots))
     if n_plots == 1:
         axs = [axs]
+    
+    for c in DATA_COLS:
+        if c in record:
+            record[c] = np.array(record[c])
 
     idx = 0
     axs[-1].set_xlabel("Time [sec]")
     if mag:
-        axs[idx].scatter(track.data[:, 0], track.data[:,1], s=1, c='blue')
+        axs[idx].scatter(record[TC.TIME], record[TC.MAG], s=1, c='blue')
         axs[idx].invert_yaxis()
-        axs[idx].set_title(f"Track {track.id}, NORAD: {track.norad_id}")
+        axs[idx].set_title(f"Track {record[TC.ID]}, NORAD: {record[TC.NORAD_ID]}")
         axs[idx].set_ylabel("Magnitude")
         axs[idx].set_xlabel("Time [sec]")
         idx += 1
 
     if fourier:
 
-        t = np.linspace(track.data[0,0], track.data[-1,0], 1000)
-        period = track.period if track.period != 0 else track.data[-1,0]
+        t = np.linspace(record[TC.TIME][0], record[TC.TIME][-1], 1000)
+        period = record[TC.PERIOD] if record[TC.PERIOD] != 0 else record[TC.TIME][-1]
         k = 8
-        if "FourierCoefs" in track.stats:
-            coefs = track.stats["FourierCoefs"]
+        if "FourierCoefs" in record:
+            coefs = record["FourierCoefs"]
             k = len(coefs) // 2
             fs = get_fourier_series(k, period)
         else:
             fs = get_fourier_series(8, period)
-            coefs = fourier_series_fit(8, track.data, period)[0]
+            coefs = fourier_series_fit(8, record, period)[0]
         fit = fs(t, *coefs)
         axs[0].plot(t, fit, c='red', label="Fourier series")
         axs[0].legend()
 
         # plot residuals
-        reconstructed = fs(track.data[:,0], *coefs)
-        residuals = track.data[:,1] - reconstructed
-        ok = track.data[:,1] != 0
+        reconstructed = fs(record[TC.TIME], *coefs)
+        residuals = record[TC.MAG] - reconstructed
+        ok = record[TC.MAG] != 0
         rms = np.sqrt(np.mean(residuals**2))
         axs[idx].set_title(f"Residuals: (RMS: {rms:.2f}, max: {residuals.max():.2f}) ")
-        axs[idx].scatter(track.data[:, 0][ok], residuals[ok], s=1, c='red')
+        axs[idx].scatter(record[TC.TIME][ok], residuals[ok], s=1, c='red')
         axs[idx].set_ylabel("Δ Magnitude")
         axs[idx].set_xlabel("Time [sec]")
         idx += 1
 
     if mag_phase:
         axs[idx].set_title(f"Phase vs Magnitude")
-        axs[idx].scatter(track.data[:, 2], track.data[:,1], s=1, c='blue')
+        axs[idx].scatter(record[TC.PHASE], record[TC.MAG], s=1, c='blue')
         axs[idx].invert_yaxis()
         axs[idx].set_ylabel("Mag")
         axs[idx].set_xlabel("Phase")
         idx += 1
     
     if phase:
-        axs[idx].scatter(track.data[:, 0], track.data[:,2], s=1, c='green')
+        axs[idx].scatter(record[TC.TIME], record[TC.PHASE], s=1, c='green')
         axs[idx].invert_yaxis()
         axs[idx].set_title(f"Phase")
         axs[idx].set_ylabel("Phase [Deg]")
@@ -107,7 +118,7 @@ def plot_track(track, mag=True, phase=False, dist=False, fourier=False, mag_phas
         idx += 1
     
     if dist:
-        axs[idx].scatter(track.data[:, 0], track.data[:,3], s=1, c='orange')
+        axs[idx].scatter(record[TC.TIME], record[TC.DISTANCE], s=1, c='orange')
         axs[idx].invert_yaxis()
         axs[idx].set_title(f"Discance")
         axs[idx].set_ylabel("Distance [km]")
@@ -116,43 +127,6 @@ def plot_track(track, mag=True, phase=False, dist=False, fourier=False, mag_phas
     plt.tight_layout()
     
     return fig, axs
-
-def plot_from_dict(data):
-    t = Track(data["id"], data["norad_id"], data["timestamp"], 0, data["period"], data["start_idx"], data["end_idx"])
-    
-    time = None
-    mag = None
-    phase = None
-    size = t.period
-    if DataType.TIME in data:
-        time = np.array(data[DataType.TIME])
-        size = len(time)
-    else:
-        for dt in [DataType.MAG, DataType.PHASE, DataType.DISTANCE]:
-            if dt in data:
-                size = len(data[dt])
-                break
-        time = np.linspace(0, size, size)
-    if DataType.MAG in data:
-        mag = np.array(data[DataType.MAG])
-    else:
-        mag = np.zeros(size)
-    if DataType.PHASE in data:
-        phase = np.array(data[DataType.PHASE])
-    else:
-        phase = np.zeros(size)
-    if DataType.DISTANCE in data:
-        dist = np.array(data[DataType.DISTANCE])
-    else:
-        dist = np.zeros(size)
-    
-    t.data = np.stack([time, mag, phase, dist], axis=1)
-    if "FourierCoefs" in data:
-        t.stats["FourierCoefs"] = data["FourierCoefs"]
-        
-    return plot_track(t, mag=DataType.MAG in data, phase=DataType.PHASE in data, dist=DataType.DISTANCE in data, fourier="FourierCoefs" in data,
-               mag_phase=DataType.MAG in data and DataType.PHASE in data)
-
 
 def fold(record, period: float):
     record = record.copy()

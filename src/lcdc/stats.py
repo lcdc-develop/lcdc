@@ -45,15 +45,17 @@ class MediumPhase(ComputeStat):
 class FourierSeries(ComputeStat):
     COEFS = "FourierCoefs"
     AMPLITUDE = "FourierAmplitude"
+    COVARIANCE = "FourierCovariance"
 
-    def __init__(self, order, fs=True, amplitude=True):
+    def __init__(self, order, fs=True, covariance=True, amplitude=True):
         self.order = order
         self.fs = fs
         self.amplitude = amplitude
+        self.covar = covariance
     
     def compute(self, record: dict):
         period = record[TC.PERIOD] if record[TC.PERIOD] != 0 else record[TC.TIME][-1]
-        coefs, _ = fourier_series_fit(self.order, record, period)
+        coefs, covar = fourier_series_fit(self.order, record, period)
 
         t = np.linspace(0, record[TC.TIME][-1], 1000)
         reconstructed = get_fourier_series(self.order, period)(t, *coefs)
@@ -63,6 +65,8 @@ class FourierSeries(ComputeStat):
             res[self.COEFS] = coefs
         if self.amplitude:
             res[self.AMPLITUDE] = amplitude
+        if self.covar:
+            res[self.COVARIANCE] = covar.reshape(-1)
         return res
     
 
