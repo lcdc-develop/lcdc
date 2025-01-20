@@ -8,6 +8,17 @@ import pandas as pd
 from lcdc import DatasetBuilder, Track
 from lcdc.vars import Variability
 
+'''
+TODO: Test 
+- [ ] dataset_builder
+- [x] filter
+- [ ] lcdataset -> to be removed !
+- [x] preprocessing
+- [x] splits
+- [ ] stats
+- [ ] transformations
+'''
+
 
 class TestDatasetBuilder(unittest.TestCase):
 

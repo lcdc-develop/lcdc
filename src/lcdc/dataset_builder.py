@@ -1,148 +1,141 @@
 import re
 from typing import List
 from tqdm import tqdm
+import os
+import glob
 
 import numpy as np
 from sklearn.model_selection import train_test_split
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 
-from .lcdataset import LCDataset
-from .utils.track import Track
-from .utils.rso import RSO
-from .utils.functions import load_rsos_from_csv, load_tracks_from_csv
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pyarrow.compute as pc
+
+from .vars import TableCols as TC, DATA_COLS
+from .preprocessing import Compose
+
 
 class DatasetBuilder:
     
     def __init__(self, 
                  directory,
-                 classes=None,
-                 regexes=None,
-                 norad_ids=None,
-                 preprocessing=None,
-                 statistics=[],
-                 split_ratio=None,
-                 mean_std=False,
-                 lazy=False):
+                 classes=[],
+                 regexes=[],
+                 norad_ids=None):
         
         self.dir = directory
-        self.preprocessing = preprocessing
-        self.statistics = statistics
-        self.split_ratio = split_ratio
-        self.compute_mean_std = mean_std
-        self.lazy = lazy
-
         self.norad_ids = norad_ids
         assert classes is not None or norad_ids is not None, "Either classes or norad_ids must be provided"
 
-        if norad_ids is not None:
-            classes = "Unknown"
-            regexes = [".*"]
+        self.classes = classes
+        self.regexes = {}
+        if regexes != []:
+            self.regexes = {c:re.compile(r) for c,r in zip(classes, regexes)}
+        elif classes != []:
+            self.regexes = {c:re.compile(c) for c in classes}
 
-        self.classes = {c:i for i, c in enumerate(classes)}
+        self.table = self.load_data()
 
-
-        regexes = regexes if regexes is not None else classes
-        self.regexes = {c:re.compile(r) for c,r in zip(classes, regexes)}
-        self.objects, self.tracks, self.labels = self.load_data()
-
-
-
-        print(f"Loaded {len(self.objects)} objects and {len(self.tracks)} tracks")
+        print(f"Loaded {len(self.table)} track")
 
     def load_data(self):
-        object_list = load_rsos_from_csv(f"{self.dir}/rso.csv")
+
+        parquet_files = glob.glob(f"{self.dir}/*.parquet")
+        dataset = pq.ParquetDataset(parquet_files)
+        table = dataset.read()
+
 
         if self.norad_ids is not None:
-            object_list = list(filter(lambda x: x.norad_id in self.norad_ids, object_list))
+            mask = pc.is_in(table[TC.NORAD_ID], value_set=pa.array(self.norad_ids))
+            table = table.filter(mask)
 
-        label_list = list(map(self._get_label, object_list))
+        names = list(map(lambda x: x.as_py(), table[TC.NAME]))
+        labels = list(map(self._get_label, names))
+        table = table.append_column(TC.LABEL, pa.array(labels))
 
-        objects = {o.norad_id: o for o, l in zip(object_list, label_list) if l is not None}
+        if self.classes != []:
+            table = table.filter(pc.field(TC.LABEL) != 'Unknown')
 
+        ranges = [(0,len(x)-1) for x in table[TC.TIME]]
+        table = table.append_column(TC.RANGE, pa.array(ranges))
 
-        labels  = {o.norad_id: l for o, l in zip(object_list, label_list) if l is not None}
-
-        track_list = load_tracks_from_csv(f"{self.dir}/tracks.csv")
-        tracks = {t.id: [t] for t in track_list if t.norad_id in objects}
-        
-        return objects, tracks, labels
+        return table
     
-    def _get_label(self, rso):
+    def _get_label(self, name):
         for c, r in self.regexes.items():
-            if r.match(rso.name) is not None:
+            if r.match(name) is not None:
                 return c
-        return None
+        return 'Unknown'
     
     def split_train_test(self, ratio=0.8, seed=None):
 
         data = []
-        for t_id in self.tracks:
-            t = self.tracks[t_id]
-            if isinstance(t, list):
-                t = t[0]
-            c = self.labels[t.norad_id]
-            data.append([t_id, self.classes[c]])
-
-        data = np.array(data)
-
+        table = self.table
+        data = ( table.group_by(TC.ID, use_threads=False)
+                      .aggregate([(TC.LABEL, "first")])
+                      .to_pandas()
+                      .to_numpy() )
+        
         X = data[:,0]
         y = data[:, 1]
 
-        train, test, _, _ = train_test_split(X, y, test_size=1-ratio, stratify=y, random_state=seed)
+        train_id, test_id, _, _ = train_test_split(X, y, test_size=1-ratio, stratify=y, random_state=seed)
 
-        train_tracks = {t_id: self.tracks[t_id] for t_id in train}
-        test_tracks  = {t_id: self.tracks[t_id] for t_id in test}
-
-        return train_tracks, test_tracks
+        return train_id, test_id
     
-    def build_dataset(self) -> List[LCDataset]:
-        def fun(ts: List[Track]):
-            t = ts[0]
-            if t.data is None:
-                t.load_data_from_file(f"{self.dir}/data")
-            parts = self.preprocessing(t, self.objects[t.norad_id])
-            for p in parts:
-                for stat_fun in self.statistics:
-                    stat_fun(p)
-                    
-            if self.lazy:
-                for p in parts:
-                    if self.lazy: p.unload_data()
-            return parts
-                
-        if self.preprocessing is not None:
-
-            new_tracks = {}
-            for ts in tqdm(self.tracks.values(), desc="Preprocessing"):
-                if (res := fun(ts)) != []:
-                    new_tracks[ts[0].id] = res
-                    
-            # self.tracks = {ts[0].id: res for ts in self.tracks.values() if (res := fun(ts)) != []}
-            self.tracks = new_tracks
-            objects_to_be_removed = set(self.objects) - set([self.tracks[i][0].norad_id for i in self.tracks])
-            for o_id in objects_to_be_removed:
-                del self.objects[o_id]
+    def preprocess(self, ops=[]):
+        if ops == []:
+            return 
         
+        preprocessor = Compose(*ops)
+
+        table = self.table
+        new_table = None
+        for i in tqdm(range(len(table)),desc="Preprocessing"):
+            t = table.slice(i,1).to_pylist()[0]
+            for c in DATA_COLS:
+                if c in t:
+                    t[c] = np.array(t[c])
+
+            records = preprocessor(t)
+            if records != []:
+                if new_table is None:
+                    new_table = pa.Table.from_pylist(records)
+                else:
+                    new_table = pa.concat_tables([new_table, pa.Table.from_pylist(records)])
+
+        self.table = new_table 
+    
+    def build_dataset(self, split_ratio=None):
         
         datasets = []
-        if self.split_ratio is None:
-            datasets = [LCDataset(self.tracks, self.labels, self.dir, self.compute_mean_std,"data")]
+        if split_ratio is None:
+            datasets = Dataset.from_dict(self.table.to_pydict())
         else:
-            train_tracks, test_tracks = self.split_train_test(self.split_ratio)
-            datasets = [LCDataset(train_tracks, self.labels, 
-                              self.dir, self.compute_mean_std, "train"), 
-                        LCDataset(test_tracks, self.labels, 
-                              self.dir, self.compute_mean_std, "test") ]
+            train_id, test_id = self.split_train_test(split_ratio)
+            train_mask = pc.is_in(self.table[TC.ID], pa.array(train_id))
+            train_table = self.table.filter(train_mask)
+            test_mask = pc.is_in(self.table[TC.ID], pa.array(test_id))
+            test_table = self.table.filter(test_mask)
+            datasets = [
+                Dataset.from_dict(train_table.to_pydict()),
+                Dataset.from_dict(test_table.to_pydict())
+            ]
+
         return datasets
     
-    def to_file(self, path, data_types=[]):
-        datasets = self.build_dataset()
+    def to_file(self, path):
+        pq.write_table(self.table, f"{path}.parquet")
 
-        for d in datasets:
-            d.to_file(path, data_types)
-    
-    def to_dict(self, data_types=[]):
-        datasets = self.build_dataset()
-        if len(datasets) == 1:
-            return datasets[0].to_dict(data_types)
-        return [d.to_dict(data_types) for d in datasets]
+    @staticmethod
+    def from_file(path):
+        table = pq.read_table(path)
+        instance = DatasetBuilder.__new__(DatasetBuilder)
+        instance.table = table
+        instance.dir = None
+        instance.classes = None
+        instance.regexes = None
+        instance.norad_ids = None
+        return instance
+
