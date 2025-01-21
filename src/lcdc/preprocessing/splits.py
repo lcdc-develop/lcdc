@@ -9,12 +9,21 @@ from ..utils import sec_to_datetime, datetime_to_sec
 from .preprocessor import Preprocessor
 
 class Split(Preprocessor):
+    """
+    Split class is an abstract class for splitting records into parts based on some methodology.
+    """
 
     @abstractmethod
     def _find_split_indices(self, record: dict):
+        """
+        Abstract method to be implemented by subclasses to define the indices to split the light curve at.
+        """
         pass
 
     def __call__(self, record: dict):
+        """
+        Splits the record into parts based on the split indices.
+        """
         indices = self._find_split_indices(record)
         parts = []
         start = 0
@@ -30,6 +39,18 @@ class Split(Preprocessor):
         return parts
 
 class SplitByGaps(Split):
+    """
+    SplitByGaps splits the light curve into parts if the time 
+    difference between two consecutive measurements is greater
+    than the apparent rotational period.
+
+    For non-periodic light curves, the split wont be performed.
+
+    Args:
+        max_length (int, optional): The maximum length of a part in seconds. Defaults to None.
+                                    If its defined, multiple parts can be merged together 
+                                    if their sum of lengths is less than max_length.
+    """
 
     def __init__(self, max_length=None):
         self.max_length = max_length
@@ -72,6 +93,14 @@ class SplitByGaps(Split):
         return list(split_indices + 1)
 
 class SplitByRotationalPeriod(Split):
+    """
+    SplitByRotationalPeriod splits the light curve into individual rotational periods.
+    For non-periodic light curves, the split wont be performed.
+
+    Args:
+        multiple (int, optional): The light curve is split by `multitiple` times 
+                                    the apparent rotational period. Defaults to 1.
+    """
 
     def __init__(self, multiple=1):
         self.multiple = multiple
@@ -83,6 +112,13 @@ class SplitByRotationalPeriod(Split):
         return SplitBySize(record[TC.PERIOD] * self.multiple)._find_split_indices(record)
 
 class SplitBySize(Split):
+    """
+    SplitBySize splits the light curve into parts of a fixed size.
+
+    Args: 
+        max_length (int): The maximum length of a part in seconds.
+        uniform (bool, optional): If True, the parts will have the same length <= max_length. Defaults to False.
+    """
 
     def __init__(self, max_length, uniform=False):
         self.max_length = max_length
