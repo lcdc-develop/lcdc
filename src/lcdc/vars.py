@@ -1,9 +1,5 @@
 from enum import IntEnum, StrEnum
 
-
-NANOSEC = 10 ** 9
-TENTH_OF_SECOND =  NANOSEC // 10
-
 class TableCols(StrEnum):
     ID = 'id'
     NORAD_ID = 'norad_id'
@@ -20,10 +16,6 @@ class TableCols(StrEnum):
     RANGE = 'range'
 
 DATA_COLS = [TableCols.TIME, TableCols.MAG, TableCols.PHASE, TableCols.DISTANCE, TableCols.FILTER]
-
-class StrVars(StrEnum):
-    FOURIER_COEFS = 'fourier_coefs'
-    WAVELET = "wavelet"
 
 class Variability(StrEnum):
     APERIODIC = 'aperiodic'
@@ -42,17 +34,6 @@ class Variability(StrEnum):
             case _:
                 raise ValueError(f"Unknown variability type: {n}")
                 
-
-class DataType(StrEnum):
-    TIME = 'time'
-    MAG = 'mag'
-    PHASE = 'phase'
-    DISTANCE = 'distance'
-    FILTER = 'filter'
-
-ALL_TYPES = [DataType.TIME, DataType.MAG, DataType.PHASE, DataType.DISTANCE, DataType.FILTER]
-TYPES_INDICES = {t: i for i, t in enumerate(ALL_TYPES)}
-
 
 class Filter(IntEnum):
     UNKNOWN = int('00000',2) # 0
