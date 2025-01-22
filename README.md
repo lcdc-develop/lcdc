@@ -1,67 +1,52 @@
-# INSTALATION
+# LCDC: Light curve dataset creator
 
-1. Clone the repository
+**LCDC** is a Python package that allows you to work with large light curve datasets in a simple and efficient way. It is designed to be used creation of dataset for machine learning models as it produces output in `datasets.Dataset` format. Also it is a powerful tool for data preprocessing and scientific analysis on whole populations.
 
-    ```bash
-    git clone https://github.com/kyselica12/lcdc.git
-    ```
+It is sutaible for working with [**MMT_snapshot**](https://huggingface.co/datasets/kyselica/MMT_snapshot/) dataset created from MMT database [^1].
 
-2. Install the package
+For full documentation visit [docs](https://lcdc-develop.github.io/lcdc/).
 
-    ```bash
-    cd lcdc
-    pip install .
-    ```
+<!-- For full documentation visit [mkdocs.org](https://www.mkdocs.org). -->
 
-# MMT Data
+## Instalation
 
-
-
-Examples `demo.ipynb`
-
-## Tomas
-
-```python
-from datasets import load_dataset, Dataset
-
-from   lcdc import DatasetBuilder, LCDataset
-from   lcdc.vars import Variability, TENTH_OF_SECOND, DataType as DT
-import lcdc.preprocessing as pp
-import lcdc.stats as stats
-import lcdc.utils as utils
-
-MMT_PATH = "/home/k/kyselica12/work/mmt/MMT"
-classes = ["H-2A R/B"]
-regexes = None
-preprocessing = pp.Compose(
-    pp.FilterByPeriodicity(Variability.PERIODIC),
-    pp.SplitByRotationalPeriod(1), 
-    pp.FilterFolded(100, 0.75), 
-    pp.FilterMinLength(100),
-)
-statistics = [
-    stats.MediumTime(), 
-    stats.MediumPhase(), 
-    stats.FourierSeries(8, fs=True, amplitude=True)
-]
-
-db = DatasetBuilder(MMT_PATH, classes=classes, regexes=regexes, preprocessing=preprocessing, statistics=statistics, lazy=False)
-ds = db.to_dict(data_types=[DT.MAG, DT.TIME, DT.PHASE, DT.DISTANCE])
-
-'''
-Dataset is in ds["data"]
->>> ds["data"]
-Dataset({
-    features: ['mag', 'time', 'phase', 'distance', 'id', 'norad_id', 'label', 'period', 'timestamp', 'start_idx', 'end_idx', 'FourierAmplitude', 'FourierCoefs', 'MediumPhase', 'MediumTime'],
-    num_rows: 4202
-})
-
-
-''''
-
-
+```bash
+git clone https://github.com/lcdc-develp/lcdc
+cd lcdc
+pip install .
 ```
 
-## TODO
+## Simple Example
 
-- [ ] Save to parquet
+```python
+from lcdc import DatasetBuilder
+from lcdc import vars
+from lcdc import utils
+import lcdc.preprocessing as pp
+import lcdc.stats as stats
+
+db = DatasetBuilder(DATA_PATH, norad_ids=[IDX])
+preprocessing = [
+    pp.FilterByPeriodicity(vars.Variability.PERIODIC),
+    pp.SplitByRotationalPeriod(1), 
+    pp.FilterMinLength(100),
+    pp.FilterFolded(100, 0.8), 
+]
+
+db.preprocess(preprocessing)
+dataset = db.build_dataset()
+print(dataset)
+```
+
+### Output
+
+```bash
+Loaded 402 track
+Preprocessing: 100%|██████████| 402/402 [00:08<00:00, 49.28it/s]
+Dataset({
+    features: ['norad_id', 'id', 'period', 'timestamp', 'time', 'mag', 'phase', 'distance', 'filter', 'name', 'variability', 'label', 'range'],
+    num_rows: 4057
+})
+```
+
+[^1]: Karpov, S., et al. "Mini-Mega-TORTORA wide-field monitoring system with sub-second temporal resolution: first year of operation." Revista Mexicana de Astronomía y Astrofísica 48 (2016): 91-96.
