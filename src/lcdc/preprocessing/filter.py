@@ -36,6 +36,20 @@ class Filter(Preprocessor, ABC):
             return [record]
         return []
 
+class CustomFilter(Filter):
+    """
+    CustomFilter class is a wrapper for custom functions that are not part of the predefined collection.
+
+    Args:
+        fun (function): The custom function to be applied to the record.
+    """
+    
+    def __init__(self, fun):
+        self.fun = fun
+
+    def condition(self, record: dict) -> bool:
+        return self.fun(record)
+
 class FilterFolded(Filter):
     """
     Filters records if its folded light curve has a certain threshold of non-zero values.

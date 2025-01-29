@@ -5,9 +5,14 @@ from .filter import (
     FilterMinLength,
     FilterFolded,
     FilterByNorad,
-    Filter
+    CustomFilter,
+    Filter,
 )
-from .preprocessor import Preprocessor, Compose
+from .preprocessor import (
+    Preprocessor, 
+    Compose, 
+    CustomProcessor,
+)
 from .splits import (
     SplitByGaps,
     SplitByRotationalPeriod,
@@ -18,4 +23,5 @@ from .transformations import (
     Fold,
     ToGrid,
     DropColumns,
+    ToApparentMagnitude,
 )

@@ -175,3 +175,31 @@ def to_grid(record, sampling_frequency):
         start = end
 
     return record
+
+def correct_standard_magnitude(mag, phase, distance, beta=0.5):
+    '''
+    Corrects the standardized magnitude to apparent magnitude.
+
+    Source: McCue GA, Williams JG, Morford JM. Optical characteristics of artificial satellites.
+        Planetary and Space Science. 1971;19(8):851-68.
+        Available from: https://www.sciencedirect.com/science/article/pii/0032063371901371.
+
+    m_V(DISTANCE, PHASE) = -26,74 - 2.5 * log10(A [beta * F_diff(phase) + (1 - beta) * F_spec]) + 5 * log10(1e6)
+    m_V(1000km, 90deg) = MAG
+
+    Reserve for getting A for DISTANCE = 1000km and PHASE = 90 deg:
+        2.5 * log10(A [beta * F_diff(phase) + (1 - beta) * F_spec]) = -26,74 - MAG + 5 * log10(1e6)
+        log10(A [beta * F_diff(phase) + (1 - beta) * F_spec]) = (-26,74 - MAG + 5 * log10(1e6)) / 2.5
+        A [beta * F_diff(phase) + (1 - beta) * F_spec] = 10 ^ ((-26,74 - MAG + 5 * log10(1e6)) / 2.5)
+        A = 10 ^ ((-26,74 - MAG + 5 * log10(1e6)) / 2.5) / [beta * F_diff(phase) + (1 - beta) * F_spec]
+    '''
+    C = -26.74
+    dist_log = lambda x: 5 * np.log10(x * 1e3)
+    def diff_plus_spec(alpha):  # difuse sphere function
+        alpha = np.radians(alpha)
+        diff = 2 / (3 * np.pi**2) * ((np.pi - alpha) * np.cos(alpha) + np.sin(alpha))
+        return beta * diff + (1 - beta) / (4 * np.pi)  # beta = 0.5, F_spec = 1/4  * pi
+
+    A = np.pow(10, (dist_log(1e3) + C - mag) / 2.5) / diff_plus_spec(90)
+    # forward calculation
+    return C - 2.5 * np.log10(A * diff_plus_spec(phase)) + dist_log(distance)

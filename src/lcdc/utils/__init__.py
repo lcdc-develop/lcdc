@@ -6,4 +6,5 @@ from .functions import (
     fourier_series_fit,
     to_grid,
     fold,
+    correct_standard_magnitude,
 )
