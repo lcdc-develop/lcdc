@@ -513,6 +513,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#customprocessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      CustomProcessor
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#filters" class="md-nav__link">
     <span class="md-ellipsis">
       Filters
@@ -571,6 +580,15 @@
   <a href="#filterbynorad" class="md-nav__link">
     <span class="md-ellipsis">
       FilterByNorad
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#customfilter" class="md-nav__link">
+    <span class="md-ellipsis">
+      CustomFilter
     </span>
   </a>
   
@@ -655,6 +673,15 @@
   <a href="#dropcolumns" class="md-nav__link">
     <span class="md-ellipsis">
       DropColumns
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#toapparentmagnitude" class="md-nav__link">
+    <span class="md-ellipsis">
+      ToApparentMagnitude
     </span>
   </a>
   
@@ -771,6 +798,15 @@
   <a href="#fourier_series_fit" class="md-nav__link">
     <span class="md-ellipsis">
       fourier_series_fit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#correct_standard_magnitude" class="md-nav__link">
+    <span class="md-ellipsis">
+      correct_standard_magnitude
     </span>
   </a>
   
@@ -941,6 +977,16 @@ flatten results of size [length x scales] stored in record's "CWT" field.
 </blockquote>
 <hr />
 <h2 id="preprocessing"><code>preprocessing</code></h2>
+<h3 id="customprocessor"><code>CustomProcessor</code></h3>
+<blockquote>
+<p><code>CustomProcessor(fun: callable)</code></p>
+<p>CustomProcessor class is a wrapper for custom functions that are not part of the predefined
+preprocessing steps. Ensure the correct output format of the function.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>fun (function): The custom function to be applied to the record.</li>
+</ul>
+</blockquote>
 <h3 id="filters">Filters</h3>
 <p>Filters filter the records based on the criteria implemented in its <code>condition(record)</code> method.</p>
 <h4 id="filterfolded"><code>FilterFolded</code></h4>
@@ -1009,6 +1055,15 @@ flatten results of size [length x scales] stored in record's "CWT" field.
 <li><code>norad_list</code> (List[int]): List of allowed NORAD IDs.</li>
 </ul>
 </blockquote>
+<h4 id="customfilter"><code>CustomFilter</code></h4>
+<blockquote>
+<p><code>CustomFilter(fun: callable)</code></p>
+<p>CustomFilter class is a wrapper for custom functions that are not part of the predefined collection.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>fun (function): The custom function to be applied to the record.</li>
+</ul>
+</blockquote>
 <h3 id="splitting">Splitting</h3>
 <p>Splitting operations are used to split one light curve into multiple records based on some methodology.</p>
 <h4 id="splitbygaps"><code>SplitByGaps</code></h4>
@@ -1068,6 +1123,20 @@ ToGrid class is a transformation that resamples the light curve by <code>samplin
 <ul>
 <li>columns (List[str]): List of columns to drop.</li>
 </ul>
+</blockquote>
+<h4 id="toapparentmagnitude"><code>ToApparentMagnitude</code></h4>
+<blockquote>
+<p><code>ToApparentMagnitude(inplace: bool)</code></p>
+<p>ToApparentMagnitude class converts standardized magnitude (to distance 1000km and 90 deg phase angle)
+into apparent magnitude.</p>
+<p><strong>Parameters</strong></p>
+<ul>
+<li>inplace (bool): If True, the original magnitude field is replaced with the corrected one. 
+                  Otherwise, the corrected magnitude is stored in a new field 'apparent_mag'.</li>
+</ul>
+<p><strong>Source</strong>: McCue GA, Williams JG, Morford JM. Optical characteristics of artificial satellites.
+            Planetary and Space Science. 1971;19(8):851-68.
+            Available from: https://www.sciencedirect.com/science/article/pii/0032063371901371.</p>
 </blockquote>
 <hr />
 <h2 id="vars"><code>vars</code></h2>
@@ -1274,6 +1343,14 @@ ToGrid class is a transformation that resamples the light curve by <code>samplin
 <p><strong>Returns</strong>
 - <code>coefs</code> (Array[order+1 x 1]): The Fourier coefficients.
 - <code>covariance_matrix</code> (Array[order+1 x order+1]): The covariance matrix of coeficients.</p>
+</blockquote>
+<h3 id="correct_standard_magnitude"><code>correct_standard_magnitude</code></h3>
+<blockquote>
+<p><code>correct_standard_magnitude(mag: float|array[float], distance: float|array[float], phase: float|array[float]]) -&gt; float|array[float]</code>    </p>
+<p>correct_standard_magnitude corrects the standardized magnitude to apparent magnitude.</p>
+<p><strong>Source</strong>: McCue GA, Williams JG, Morford JM. Optical characteristics of artificial satellites.
+            Planetary and Space Science. 1971;19(8):851-68.
+            Available from: https://www.sciencedirect.com/science/article/pii/0032063371901371.</p>
 </blockquote>
 
 
