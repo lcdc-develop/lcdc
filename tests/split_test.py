@@ -11,14 +11,13 @@ from lcdc.utils import sec_to_datetime
 class TestSplitByGaps(unittest.TestCase):
 
     def test_call(self):
-        record = {TC.PERIOD: 5}
+        record = {TC.PERIOD: 2}
         t = np.array([0,1,2,3,6,7,8,9])
         record[TC.TIME] = t
         for c in filter(lambda x: x in record, DATA_COLS):
             if c == TC.TIME: continue
             record[c] = np.zeros(len(record[TC.TIME]))
 
-        record[TC.PERIOD] = 2
         record[TC.TIMESTAMP] = sec_to_datetime(10)
         record[TC.RANGE] = (0,8)
         split_by_gaps = SplitByGaps()
@@ -29,6 +28,27 @@ class TestSplitByGaps(unittest.TestCase):
         assert np.all(result[1][TC.TIME] == t[4:]-t[4]), f"Wrong split: Expected {t[:4]}, got {result[0][TC.DATA][:,0]}"
         assert result[0][TC.RANGE][1] == 3, f"Wrong end_idx: Expected 3, got {result[0][TC.RANGE][1]}"
         assert result[1][TC.RANGE][0] == 4, f"Wrong start_idx: Expected 4, got {result[1][TC.RANGE][0]}"
+    
+    def test_max_length(self):
+        record = {TC.PERIOD: 2}
+        t = np.array([0,1,2,3,6,7,8,9,15,16,17])
+        record[TC.TIME] = t
+        for c in filter(lambda x: x in record, DATA_COLS):
+            if c == TC.TIME: continue
+            record[c] = np.zeros(len(record[TC.TIME]))
+
+        record[TC.TIMESTAMP] = sec_to_datetime(10)
+        record[TC.RANGE] = (0,8)
+        split_by_gaps = SplitByGaps(max_length=10)
+        result = split_by_gaps(record)
+        assert len(result) == 2, f"Wrong number of splits: Expected 2, got {len(result)}"
+        assert np.all(result[0][TC.TIME] == t[:8]), f"Wrong split: Expected {t[:8]}, got {result[0][TC.DATA][:,0]}"
+        assert np.all(result[1][TC.TIME] == t[8:]-t[8]), f"Wrong split: Expected {t[:8]}, got {result[1][TC.DATA][:,0]}"
+        assert result[0][TC.RANGE][1] == 7, f"Wrong end_idx: Expected 3, got {result[0][TC.RANGE][1]}"
+        assert result[1][TC.RANGE][0] == 8, f"Wrong start_idx: Expected 4, got {result[1][TC.RANGE][0]}"
+
+        
+        
 
 class TestSplitBySize(unittest.TestCase):
 

@@ -48,7 +48,7 @@ class TestStats(unittest.TestCase):
         cwt = ContinousWaveletTransform(wavelet, length, scales)
         result = cwt.compute(self.record)
         self.assertIn(ContinousWaveletTransform.NAME, result)
-        self.assertEqual(result[ContinousWaveletTransform.NAME].shape, (scales, length))
+        self.assertEqual(len(result[ContinousWaveletTransform.NAME]), scales*length)
 
 if __name__ == "__main__":
     unittest.main()

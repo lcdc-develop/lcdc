@@ -12,7 +12,7 @@ class TestFilterFolded(unittest.TestCase):
 
     def _get_record(self):
         record = {TC.PERIOD: 5}
-        for c in filter(lambda x: x in record, DATA_COLS):
+        for c in DATA_COLS:
             record[c] = np.ones(5)
         return record
 
@@ -34,7 +34,7 @@ class TestFilterMinLength(unittest.TestCase):
 
     def _get_record(self):
         record = {TC.PERIOD: 5}
-        for c in filter(lambda x: x in record, DATA_COLS):
+        for c in DATA_COLS:
             record[c] = np.ones(5)
         return record
 
