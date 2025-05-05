@@ -11,9 +11,7 @@ For full documentation visit [docs](https://lcdc-develop.github.io/lcdc/).
 ## Instalation
 
 ```bash
-git clone https://github.com/lcdc-develp/lcdc
-cd lcdc
-pip install .
+pip install lcdc
 ```
 
 ## Simple Example
