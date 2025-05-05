@@ -49,4 +49,18 @@ Dataset({
 })
 ```
 
+## 📝 Citing
+
+```bibtex
+@article{kyselica2025lcdc,
+  title={LCDC: Bridging Science and Machine Learning for Light Curve Analysis},
+  author={Kyselica, Daniel and Hrob{\'a}r, Tom{\'a}{\v{s}} and {\v{S}}ilha, Ji{\v{r}}{\'\i} and {\v{D}}urikovi{\v{c}}, Roman and {\v{S}}uppa, Marek},
+  journal={arXiv preprint arXiv:2504.10550},
+  year={2025}
+}
+```
+
+
 [^1]: Karpov, S., et al. "Mini-Mega-TORTORA wide-field monitoring system with sub-second temporal resolution: first year of operation." Revista Mexicana de Astronomía y Astrofísica 48 (2016): 91-96.
+
+
